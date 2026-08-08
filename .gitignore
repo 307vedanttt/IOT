@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 data/
 recognition/serviceAccountKey.json
+firebase-service-account.json
 .env
 .DS_Store
