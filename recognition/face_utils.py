@@ -19,12 +19,13 @@ TOLERANCE = 0.45
 
 def detect_faces(frame: np.ndarray) -> list[tuple]:
     """Return list of face bounding boxes [(top, right, bottom, left), ...] in the frame."""
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    # Ensure the frame is an 8-bit RGB contiguous array (dlib requirement)
+    rgb_frame = np.ascontiguousarray(frame[:, :, ::-1], dtype=np.uint8)
     return face_recognition.face_locations(rgb_frame)
 
 def encode_face(frame: np.ndarray, face_locations=None) -> np.ndarray | None:
     """Return 128-d encoding for the first face found, or None if no face detected."""
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    rgb_frame = np.ascontiguousarray(frame[:, :, ::-1], dtype=np.uint8)
     if face_locations is None:
         face_locations = face_recognition.face_locations(rgb_frame)
         
