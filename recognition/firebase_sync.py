@@ -1,73 +1,97 @@
 """
 firebase_sync.py — Offline Buffering & Firebase Realtime Database Sync
 =======================================================================
-Handles all communication with Firebase Realtime Database using the Firebase Admin SDK.
-
-Responsibilities:
-- Initialize Firebase app with service account credentials (serviceAccountKey.json)
-- push_event(event_dict)        : Try to push a single attendance event to Firebase RTDB;
-                                  if offline, the event stays in SQLite (synced=0) as buffer
-- sync_pending()                : Called periodically; fetches all unsynced SQLite rows
-                                  and pushes them to Firebase in batch
-- is_online()                   : Simple connectivity check (ping Firebase host)
-- push_safety_event(event_dict) : Push a safety sensor event to Firebase
-
-Firebase RTDB Structure (JSON tree):
-    /attendance_logs/
-        <student_id>/
-            <log_id>/
-                event_type: "entry" | "exit"
-                timestamp:  "2024-01-15T09:32:00"
-                name:       "Student Name"
-    /students/
-        <student_id>/
-            name, course, registered_at
-    /safety_events/
-        <event_id>/
-            sensor_type, value, unit, timestamp
-    /lab_status/
-        current_count: <int>   # live count of students currently in lab
-        last_updated:  <timestamp>
-
-Setup:
-    1. Go to Firebase Console → Project Settings → Service Accounts → Generate new private key
-    2. Save the downloaded JSON as  recognition/serviceAccountKey.json
-    3. Set FIREBASE_DB_URL below to your project's Realtime Database URL
-    (!) Add serviceAccountKey.json to .gitignore — never commit credentials!
 """
 
-# TODO: import firebase_admin
-# TODO: from firebase_admin import credentials, db as rtdb
-# TODO: import socket, json
+import threading
+import time
+import socket
+import firebase_admin
+from firebase_admin import credentials, db as rtdb
+import local_db
+import os
 
-FIREBASE_DB_URL = "https://<YOUR-PROJECT-ID>-default-rtdb.firebaseio.com/"
-SERVICE_ACCOUNT_PATH = "serviceAccountKey.json"
+FIREBASE_DB_URL = "https://smart-lab-attendance-default-rtdb.firebaseio.com/" # Replace later
+SERVICE_ACCOUNT_PATH = "./firebase-service-account.json"
+SYNC_INTERVAL = 15 # seconds
 
-# TODO: def init_firebase() -> None:
-#   """Initialize the Firebase Admin SDK. Call once at startup. Handles already-initialized check."""
-#   cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
-#   firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DB_URL})
+_firebase_initialized = False
+_sync_thread_running = False
 
-# TODO: def is_online() -> bool:
-#   """Check internet connectivity by attempting a socket connection to Firebase host."""
-#   try: socket.setdefaulttimeout(3); socket.create_connection(("firebaseio.com", 443)); return True
-#   except: return False
+def init_firebase() -> bool:
+    global _firebase_initialized
+    if _firebase_initialized:
+        return True
+        
+    if not os.path.exists(SERVICE_ACCOUNT_PATH):
+        # We can't initialize without credentials
+        return False
+        
+    try:
+        cred = credentials.Certificate(SERVICE_ACCOUNT_PATH)
+        firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DB_URL})
+        _firebase_initialized = True
+        return True
+    except Exception as e:
+        print(f"Firebase init error: {e}")
+        return False
 
-# TODO: def push_event(event: dict) -> bool:
-#   """
-#   Push a single attendance event dict to Firebase RTDB.
-#   Returns True on success, False if offline (event stays buffered in SQLite).
-#   Path: /attendance_logs/<student_id>/<log_id>
-#   Also updates /lab_status/current_count based on entry/exit.
-#   """
+def check_connectivity(host="8.8.8.8", port=53, timeout=3) -> bool:
+    """Simple check to determine if internet is reachable."""
+    try:
+        socket.setdefaulttimeout(timeout)
+        socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+        return True
+    except socket.error:
+        return False
 
-# TODO: def push_safety_event(event: dict) -> bool:
-#   """Push a safety sensor event to /safety_events/ in Firebase RTDB."""
+def sync_pending_events():
+    """Background thread function to push unsynced events to Firebase."""
+    global _sync_thread_running
+    _sync_thread_running = True
+    
+    while _sync_thread_running:
+        if not init_firebase():
+            print("[OFFLINE] Buffering locally... (Missing firebase credentials or init failed)")
+            time.sleep(SYNC_INTERVAL)
+            continue
+            
+        if not check_connectivity():
+            print("[OFFLINE] Buffering locally... (No internet connection)")
+            time.sleep(SYNC_INTERVAL)
+            continue
+            
+        unsynced = local_db.get_unsynced_events()
+        if not unsynced:
+            time.sleep(SYNC_INTERVAL)
+            continue
+            
+        success_count = 0
+        for event in unsynced:
+            table = event.pop('table')
+            try:
+                if table == 'attendance_events':
+                    event_id = event.pop('event_id')
+                    ref = rtdb.reference(f'attendance_events/{event_id}')
+                    ref.set(event) # Safe: sets the data at this specific path (idempotent)
+                    local_db.mark_as_synced(table, event_id)
+                    success_count += 1
+                elif table == 'mismatch_logs':
+                    log_id = event.pop('log_id')
+                    ref = rtdb.reference(f'mismatch_logs/{log_id}')
+                    ref.set(event)
+                    local_db.mark_as_synced(table, log_id)
+                    success_count += 1
+            except Exception as e:
+                print(f"[SYNC ERROR] Failed to push {table} row: {e}")
+                
+        if success_count > 0:
+            print(f"[SYNCED] Pushed {success_count} events to Firebase.")
+            
+        time.sleep(SYNC_INTERVAL)
 
-# TODO: def sync_pending() -> int:
-#   """
-#   Fetch all unsynced rows from SQLite via local_db.get_unsynced_events().
-#   Push each one to Firebase. Mark as synced on success.
-#   Returns count of successfully synced events.
-#   Call this on a background thread or at start of each main loop iteration.
-#   """
+def start_sync_thread():
+    """Start the background synchronization thread."""
+    t = threading.Thread(target=sync_pending_events, daemon=True)
+    t.start()
+    return t
