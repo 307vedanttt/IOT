@@ -1,0 +1,24 @@
+# requirements.txt — Smart Lab Attendance System (Recognition Pipeline)
+# -----------------------------------------------------------------------
+# Install with:  pip install -r requirements.txt
+#
+# IMPORTANT — Read before installing:
+#
+# 1. face_recognition requires dlib, which requires cmake + C++ build tools.
+#    See the README.md Troubleshooting section for platform-specific instructions.
+#
+# 2. pyzbar requires the zbar shared library (separate from the Python package).
+#    Windows: download and install the ZBar DLL from http://zbar.sourceforge.net/
+#    Linux:   sudo apt install libzbar0
+#    macOS:   brew install zbar
+#
+# 3. firebase-admin pulls in google-auth, grpcio, and other heavy dependencies.
+#    First-time install may take a few minutes.
+
+opencv-python>=4.8.0
+face_recognition>=1.3.0
+pyzbar>=0.1.9
+firebase-admin>=6.2.0
+qrcode[pil]>=7.4.2     # for generating student ID QR codes during registration
+numpy>=1.24.0           # pulled in by opencv & face_recognition, pinned for compatibility
+Pillow>=10.0.0          # for qrcode image generation

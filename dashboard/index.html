@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Lab Attendance Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Firebase SDKs (using compat libraries for simpler non-module setup in standard HTML) -->
+    <!-- TODO: Add Firebase script tags here (app and database) -->
+</head>
+<body>
+    <header>
+        <h1>Smart Lab Attendance System</h1>
+        <div id="connection-status" class="status-offline">Connecting...</div>
+    </header>
+
+    <main>
+        <!-- Top statistics cards -->
+        <section class="stats-container">
+            <div class="stat-card">
+                <h3>Students in Lab</h3>
+                <p id="current-count">0</p>
+            </div>
+            <!-- Add more stats if needed -->
+        </section>
+
+        <div class="dashboard-grid">
+            <!-- Left Column: Attendance Log -->
+            <section class="log-section">
+                <h2>Live Attendance Feed</h2>
+                <div class="table-container">
+                    <table id="attendance-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Student ID</th>
+                                <th>Name</th>
+                                <th>Event</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-body">
+                            <!-- JS will populate rows here -->
+                            <tr>
+                                <td colspan="4" class="empty-state">Waiting for data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Right Column: Safety Sensors (Simulated) -->
+            <section class="safety-section">
+                <h2>Lab Safety Monitor</h2>
+                <div class="sensor-grid" id="sensor-grid">
+                    <!-- JS will populate sensor widgets here -->
+                     <div class="sensor-card">
+                        <h4>Temperature</h4>
+                        <p id="sensor-temp">-- °C</p>
+                     </div>
+                     <div class="sensor-card">
+                        <h4>Gas Level</h4>
+                        <p id="sensor-gas">-- ppm</p>
+                     </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Firebase configuration -->
+    <script src="firebase-config.js"></script>
+    <!-- Main application logic -->
+    <script src="app.js"></script>
+</body>
+</html>
