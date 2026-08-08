@@ -6,70 +6,126 @@
     <title>Smart Lab Attendance Dashboard</title>
     <link rel="stylesheet" href="style.css">
     
-    <!-- Firebase SDKs (using compat libraries for simpler non-module setup in standard HTML) -->
-    <!-- TODO: Add Firebase script tags here (app and database) -->
+    <!-- Firebase SDKs (V8 Compat for simple HTML integration) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
-    <header>
-        <h1>Smart Lab Attendance System</h1>
-        <div id="connection-status" class="status-offline">Connecting...</div>
-    </header>
 
-    <main>
-        <!-- Top statistics cards -->
-        <section class="stats-container">
-            <div class="stat-card">
-                <h3>Students in Lab</h3>
-                <p id="current-count">0</p>
-            </div>
-            <!-- Add more stats if needed -->
-        </section>
-
-        <div class="dashboard-grid">
-            <!-- Left Column: Attendance Log -->
-            <section class="log-section">
-                <h2>Live Attendance Feed</h2>
-                <div class="table-container">
-                    <table id="attendance-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Student ID</th>
-                                <th>Name</th>
-                                <th>Event</th>
-                            </tr>
-                        </thead>
-                        <tbody id="attendance-body">
-                            <!-- JS will populate rows here -->
-                            <tr>
-                                <td colspan="4" class="empty-state">Waiting for data...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Right Column: Safety Sensors (Simulated) -->
-            <section class="safety-section">
-                <h2>Lab Safety Monitor</h2>
-                <div class="sensor-grid" id="sensor-grid">
-                    <!-- JS will populate sensor widgets here -->
-                     <div class="sensor-card">
-                        <h4>Temperature</h4>
-                        <p id="sensor-temp">-- °C</p>
-                     </div>
-                     <div class="sensor-card">
-                        <h4>Gas Level</h4>
-                        <p id="sensor-gas">-- ppm</p>
-                     </div>
-                </div>
-            </section>
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="screen">
+        <div class="login-card">
+            <h2>Admin Login</h2>
+            <p>Smart Lab Attendance System</p>
+            <form id="login-form">
+                <input type="email" id="email" placeholder="Email Address" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+                <p id="login-error" class="error-msg hidden"></p>
+            </form>
         </div>
-    </main>
+    </div>
 
-    <!-- Firebase configuration -->
+    <!-- DASHBOARD SCREEN -->
+    <div id="dashboard-screen" class="screen hidden">
+        <header>
+            <div class="header-left">
+                <h1>Smart Lab Attendance System</h1>
+            </div>
+            <div class="header-right">
+                <span id="admin-status">Logged in as admin</span>
+                <button id="logout-btn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <!-- Safety Status Banner -->
+        <div id="safety-banner" class="banner banner-normal">
+            <div class="banner-content">
+                <strong>Safety Status:</strong> <span id="safety-text">Normal (Fetching...)</span>
+            </div>
+            <div class="banner-details">
+                Temp: <span id="safety-temp">--</span>°C | 
+                Gas: <span id="safety-gas">--</span> ppm | 
+                Humidity: <span id="safety-hum">--</span>%
+            </div>
+        </div>
+
+        <main>
+            <div class="dashboard-grid">
+                
+                <!-- Left Column -->
+                <div class="column-left">
+                    <!-- Currently Inside Lab Panel -->
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>Currently Inside Lab</h2>
+                            <span id="inside-count" class="badge">0</span>
+                        </div>
+                        <div class="table-container list-container">
+                            <table class="simple-table">
+                                <tbody id="inside-list">
+                                    <!-- Populated by JS -->
+                                    <tr><td class="empty-state">No students currently in lab.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <!-- Proxy / Mismatch Log Panel -->
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2>Proxy / Mismatch Log</h2>
+                        </div>
+                        <div class="table-container list-container">
+                            <table class="simple-table">
+                                <tbody id="mismatch-list">
+                                    <!-- Populated by JS -->
+                                    <tr><td class="empty-state">No mismatches logged.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Right Column -->
+                <div class="column-right">
+                    <!-- Recent Events Feed -->
+                    <section class="panel">
+                        <div class="panel-header flex-between">
+                            <h2>Recent Events Feed</h2>
+                            <button id="export-csv-btn" class="btn-primary">Export CSV</button>
+                        </div>
+                        
+                        <div class="search-bar">
+                            <input type="text" id="search-input" placeholder="Search by name or ID...">
+                        </div>
+
+                        <div class="table-container feed-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Event</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="events-body">
+                                    <!-- Populated by JS -->
+                                    <tr><td colspan="4" class="empty-state">Waiting for data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Firebase Config & App Logic -->
     <script src="firebase-config.js"></script>
-    <!-- Main application logic -->
     <script src="app.js"></script>
 </body>
 </html>

@@ -3,7 +3,8 @@ firebase-config.js
 Holds the configuration object for the Firebase JS SDK.
 */
 
-// TODO: Replace with actual config from Firebase Console
+// IMPORTANT: Replace these placeholders with your actual Firebase project configuration.
+// You can find this in the Firebase Console under Project Settings -> General -> Your apps
 const firebaseConfig = {
     apiKey: "YOUR_API_KEY",
     authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -14,5 +15,7 @@ const firebaseConfig = {
     appId: "YOUR_APP_ID"
 };
 
-// TODO: Initialize Firebase (using compat SDK in index.html)
-// firebase.initializeApp(firebaseConfig);
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
