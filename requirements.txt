@@ -1,0 +1,8 @@
+ultralytics
+opencv-python
+pyserial
+requests
+fastapi
+uvicorn
+numpy
+pandas

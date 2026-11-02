@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Checkpoint — Mission Control HUD</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Chakra Petch, Plus Jakarta Sans, JetBrains Mono, Barlow Condensed -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --canvas: #07090D;
+            --surface: rgba(14, 18, 25, 0.74);
+            --surface-elevated: rgba(20, 26, 36, 0.85);
+            --track: #1C222C;
+            --accent: #FF6B00;
+            --accent-glow: rgba(255, 107, 0, 0.4);
+            --granted: #10B981;
+            --granted-glow: rgba(16, 185, 129, 0.35);
+            --denied-fill: #EF4444;
+            --denied-text: #F87171;
+            --denied-glow: rgba(239, 68, 68, 0.4);
+            --hazard-yellow: #FFB800;
+            --hazard-glow: rgba(255, 184, 0, 0.3);
+            --cyan-accent: #00F0FF;
+            --cyan-glow: rgba(0, 240, 255, 0.3);
+            --text: #F4F4F6;
+            --muted: #8E95A5;
+            --border: rgba(255, 255, 255, 0.09);
+            --border-hover: rgba(255, 107, 0, 0.45);
+        }
+
+        body {
+            background-color: var(--canvas);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(255, 107, 0, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 35%),
+                linear-gradient(180deg, rgba(7, 9, 13, 0.82) 0%, rgba(7, 9, 13, 0.90) 45%, rgba(7, 9, 13, 0.97) 100%),
+                var(--bg-image, url('/static/bg_construction_twin.jpg'));
+            background-size: 100% 100%, 100% 100%, 100% 100%, cover;
+            background-position: center top;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .font-condensed { font-family: 'Chakra Petch', 'Barlow Condensed', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace; }
+        .font-display { font-family: 'Chakra Petch', sans-serif; letter-spacing: 0.04em; }
+
+        /* Modern Glassmorphic Panels with Frosted Ambient Blur */
+        .panel {
+            background-color: var(--surface);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                        border-color 0.25s ease, 
+                        box-shadow 0.3s ease;
+        }
+        .panel:hover {
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+        .panel-interactive:hover {
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65), 0 0 24px rgba(255, 107, 0, 0.15);
+        }
+
+        /* Brand Hazard Mark */
+        .brand-hazard-sq {
+            width: 24px;
+            height: 24px;
+            background: #FF6B00;
+            background-image: repeating-linear-gradient(45deg, #FF6B00, #FF6B00 5px, #0B0D11 5px, #0B0D11 10px);
+            border-radius: 3px;
+            box-shadow: 0 0 12px rgba(255, 107, 0, 0.4);
+            flex-shrink: 0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .brand-hazard-sq:hover {
+            transform: scale(1.08) rotate(3deg);
+            box-shadow: 0 0 18px rgba(255, 107, 0, 0.6);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(180deg, #FF7B1A 0%, #FF6B00 100%);
+            color: #FFFFFF;
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 8px rgba(255, 107, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        .btn-primary:hover::after {
+            left: 100%;
+        }
+        .btn-primary:hover {
+            background: #FF8526;
+            box-shadow: 0 0 16px rgba(255, 107, 0, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-primary:active { transform: translateY(1px); }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.25);
+            color: #FFFFFF;
+            transform: translateY(-1px);
+        }
+        .btn-secondary:active { transform: translateY(1px); }
+
+        /* Chips with subtle glow */
+        .chip {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            padding: 5px 12px;
+            border-radius: 3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.25s ease;
+        }
+        .chip-ok {
+            background: rgba(16, 185, 129, 0.14);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.5);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.25);
+        }
+        .chip-bad {
+            background: rgba(239, 68, 68, 0.14);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+        }
+        .chip-neutral {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        /* Servo Barrier Arm Physics Transition (1.10s smooth with mechanical ease) */
+        .servo-arm {
+            transform-origin: 26px 42px;
+            transition: transform 1.1s cubic-bezier(0.34, 1.25, 0.64, 1);
+        }
+
+        /* Pulsing Beacon Animations */
+        @keyframes beacon-pulse-amber {
+            0%, 100% { fill: #FFB800; filter: drop-shadow(0 0 8px #FFB800); }
+            50% { fill: #8A6000; filter: none; }
+        }
+        @keyframes beacon-strobe-red {
+            0%, 40%, 100% { fill: #EF4444; filter: drop-shadow(0 0 12px #EF4444); }
+            20%, 60% { fill: #450A0A; filter: none; }
+        }
+        @keyframes beacon-steady-green {
+            0%, 100% { fill: #10B981; filter: drop-shadow(0 0 10px #10B981); }
+        }
+        .beacon-amber { animation: beacon-pulse-amber 1.2s infinite ease-in-out; }
+        .beacon-red { animation: beacon-strobe-red 0.6s infinite ease-in-out; }
+        .beacon-green { animation: beacon-steady-green 2s infinite ease-in-out; }
+
+        /* Dynamic Hero Ambient Back-Glow Transitions */
+        .hero-glow-idle {
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+        }
+        .hero-glow-checking {
+            box-shadow: 0 0 45px rgba(255, 184, 0, 0.18), inset 0 0 25px rgba(255, 184, 0, 0.06);
+            border-color: rgba(255, 184, 0, 0.4) !important;
+        }
+        .hero-glow-pass {
+            box-shadow: 0 0 55px rgba(16, 185, 129, 0.28), inset 0 0 35px rgba(16, 185, 129, 0.08);
+            border-color: rgba(16, 185, 129, 0.5) !important;
+        }
+        .hero-glow-fail {
+            box-shadow: 0 0 55px rgba(239, 68, 68, 0.32), inset 0 0 35px rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.5) !important;
+        }
+
+        /* Shake animation on Access Denied */
+        @keyframes panel-shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-7px); }
+            40%, 80% { transform: translateX(7px); }
+        }
+        .shake-active {
+            animation: panel-shake 0.45s ease-in-out;
+        }
+
+        /* Yellow Slide-Down Flash for newly arrived log events */
+        @keyframes row-arrive {
+            0% { 
+                background-color: rgba(255, 184, 0, 0.55); 
+                transform: translateY(-8px);
+                opacity: 0;
+            }
+            30% { opacity: 1; }
+            100% { 
+                background-color: transparent; 
+                transform: translateY(0);
+            }
+        }
+        .row-new {
+            animation: row-arrive 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Circular Timer Progress Ring */
+        .timer-circle {
+            transition: stroke-dashoffset 0.1s linear, stroke 0.3s ease;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--canvas); }
+        ::-webkit-scrollbar-thumb { background: #242933; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* Radar Sonar Ping Animation */
+        @keyframes sonar-ripple {
+            0% { transform: scale(0.2); opacity: 0.9; }
+            80% { opacity: 0.2; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+        .sonar-wave {
+            animation: sonar-ripple 2s infinite cubic-bezier(0.2, 0.8, 0.4, 1);
+        }
+
+        /* Holographic Laser Sweep Across Live Camera */
+        @keyframes laser-sweep {
+            0% { top: 0%; opacity: 0; }
+            15% { opacity: 0.95; }
+            85% { opacity: 0.95; }
+            100% { top: 96%; opacity: 0; }
+        }
+        .laser-beam {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #FF6B00 20%, #FFF 50%, #FF6B00 80%, transparent);
+            box-shadow: 0 0 14px #FF6B00, 0 0 24px rgba(255, 107, 0, 0.7);
+            animation: laser-sweep 2.2s infinite ease-in-out;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        /* Cyberpunk Corner Reticle Brackets */
+        .corner-bracket {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-color: #FF6B00;
+            pointer-events: none;
+            z-index: 20;
+            transition: all 0.3s ease;
+        }
+        .corner-tl { top: 8px; left: 8px; border-top: 2px solid; border-left: 2px solid; }
+        .corner-tr { top: 8px; right: 8px; border-top: 2px solid; border-right: 2px solid; }
+        .corner-bl { bottom: 8px; left: 8px; border-bottom: 2px solid; border-left: 2px solid; }
+        .corner-br { bottom: 8px; right: 8px; border-bottom: 2px solid; border-right: 2px solid; }
+
+        /* Dynamic Equalizer Waveform Bars */
+        @keyframes eq-pulse {
+            0%, 100% { height: 4px; }
+            50% { height: 16px; }
+        }
+        .eq-bar {
+            width: 3px;
+            border-radius: 1px;
+            background: #FF6B00;
+            animation: eq-pulse 1s infinite ease-in-out;
+        }
+        .eq-bar:nth-child(1) { animation-delay: 0.1s; height: 6px; }
+        .eq-bar:nth-child(2) { animation-delay: 0.3s; height: 12px; }
+        .eq-bar:nth-child(3) { animation-delay: 0.5s; height: 16px; }
+        .eq-bar:nth-child(4) { animation-delay: 0.2s; height: 10px; }
+        .eq-bar:nth-child(5) { animation-delay: 0.4s; height: 8px; }
+
+        /* Gear 3D Hotspot Pulse Markers */
+        @keyframes gear-ping {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .hotspot-ping {
+            animation: gear-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col relative">
+    <!-- Ambient Floating Telemetry Particle Canvas -->
+    <canvas id="bg-particles" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <!-- ========================================================================= -->
+    <!-- TOP NAVIGATION BAR                                                        -->
+    <!-- ========================================================================= -->
+    <header class="h-14 bg-[#13161C]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-6 sm:gap-8">
+            <a href="/" class="flex items-center gap-3 text-decoration-none group">
+                <div class="relative flex items-center gap-2">
+                    <img src="/static/sentinel_edge_ai_badge.jpg" alt="Sentinel Edge AI" class="w-8 h-8 rounded-full border border-[#FF6B00]/60 shadow-[0_0_12px_rgba(255,107,0,0.5)] object-cover group-hover:scale-105 transition-transform">
+                    <div class="brand-hazard-sq hidden sm:block"></div>
+                </div>
+                <div>
+                    <span class="font-condensed font-extrabold text-xl tracking-wider text-[#F4F4F6] uppercase">PPE CHECKPOINT</span>
+                    <span class="hidden sm:inline-block ml-2 text-[10px] font-mono text-[#FF6B00] border border-[#FF6B00]/40 px-1.5 py-0.5 rounded-[2px] bg-[#FF6B00]/10">GATE 01</span>
+                </div>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
+                <a href="/" class="h-14 flex items-center text-[#F4F4F6] border-b-2 border-[#FF6B00] font-semibold px-0.5">Live Gate</a>
+                <a href="/reports" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Violation Reports</a>
+                <a href="/events" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Event History</a>
+                <a href="/settings" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Settings</a>
+                <a href="/about" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">About</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3 sm:gap-5 text-xs font-mono">
+            <div id="conn-badge" class="flex items-center gap-2 px-3 py-1 rounded-[3px] bg-[#1A1E26] border border-[rgba(255,255,255,0.08)] text-[#F4F4F6]">
+                <span id="conn-dot" class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+                <span id="conn-text" class="font-bold tracking-wider">LIVE // COM5</span>
+            </div>
+
+            <!-- Interactive Background Digital Twin Switcher -->
+            <div class="hidden xl:flex items-center bg-[#101318]/90 backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-[3px] p-0.5 text-[11px] font-mono shadow-sm">
+                <button type="button" onclick="setThemeBg('construction')" id="bg-btn-construction" class="px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-white font-bold transition-all shadow-[0_0_8px_rgba(255,107,0,0.5)]" title="Digital Twin Construction Site">🏗️ Site</button>
+                <button type="button" onclick="setThemeBg('refinery')" id="bg-btn-refinery" class="px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all" title="Industrial Cyber Refinery">🏭 Refinery</button>
+                <button type="button" onclick="setThemeBg('checkpoint')" id="bg-btn-checkpoint" class="px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all" title="Smart AI Gate Checkpoint">🛰️ Gate</button>
+            </div>
+
+            <div id="top-clock" class="text-[#F4F4F6] font-medium hidden sm:inline tracking-wider">14:32:07</div>
+            <div class="text-[#8E95A5] hidden lg:inline">Safety Officer</div>
+
+            <button onclick="toggleAudio()" id="btn-audio" class="text-[#8E95A5] hover:text-[#F4F4F6] p-2 rounded hover:bg-white/5 transition-colors" title="Toggle audio feedback">
+                <i id="icon-audio" class="fa-solid fa-volume-high text-[#FF6B00]"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- MAIN WORKSPACE                                                            -->
+    <!-- ========================================================================= -->
+    <main class="flex-grow p-4 sm:p-6 max-w-7xl w-full mx-auto flex flex-col gap-5 relative z-10">
+
+        <!-- --------------------------------------------------------------------- -->
+        <!-- 1. STATUS HERO: CAMERA FRAME (LEFT) & LIVELY STATUS HERO (RIGHT)      -->
+        <!-- --------------------------------------------------------------------- -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+            <!-- Left: Camera Frame with Real-Time Proximity Sonar (7 cols) -->
+            <div class="lg:col-span-7 panel p-3.5 flex flex-col justify-between">
+                <!-- Video Frame with Cyberpunk Corner Reticles & Holographic Laser -->
+                <div class="relative bg-black rounded-[3px] overflow-hidden aspect-[4/3] flex items-center justify-center border border-[rgba(255,255,255,0.08)] shadow-inner group">
+                    <!-- Corner Reticles -->
+                    <div class="corner-bracket corner-tl"></div>
+                    <div class="corner-bracket corner-tr"></div>
+                    <div class="corner-bracket corner-bl"></div>
+                    <div class="corner-bracket corner-br"></div>
+
+                    <!-- Dynamic Holographic Scanning Laser (sweeps during CHECKING) -->
+                    <div id="camera-laser" class="laser-beam hidden"></div>
+
+                    <!-- Center Reticle Crosshairs -->
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-10 opacity-40">
+                        <div class="relative w-16 h-16 flex items-center justify-center">
+                            <div class="w-full h-[1px] bg-[#FF6B00]"></div>
+                            <div class="absolute h-full w-[1px] bg-[#FF6B00]"></div>
+                            <div class="absolute w-6 h-6 border border-[#FF6B00] rounded-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Top-Right Live Sentinel Vision Specs -->
+                    <div class="absolute top-2.5 right-2.5 z-20 pointer-events-none flex items-center gap-2">
+                        <div class="bg-black/80 backdrop-blur-md px-2 py-1 rounded-[3px] border border-white/10 text-[10px] font-mono text-[#10B981] flex items-center gap-1.5 shadow-md">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
+                            <span>30 FPS // 22ms</span>
+                        </div>
+                    </div>
+
+                    <!-- Live Gate Camera Feed -->
+                    <img id="camera-stream" src="/video_feed" alt="Live Gate Camera Feed" class="w-full h-full object-cover">
+
+                    <!-- Floating Neural AI Telemetry HUD Bar -->
+                    <div class="absolute bottom-2.5 left-2.5 right-2.5 z-20 pointer-events-none flex items-center justify-between">
+                        <div class="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-[3px] border border-white/10 text-[10px] font-mono text-[#CBD5E1] flex items-center gap-2.5 shadow-lg">
+                            <span class="text-[#FF6B00] font-bold"><i class="fa-solid fa-microchip"></i> YOLOv8</span>
+                            <span class="text-white/30">|</span>
+                            <span>INPUT: 640x640</span>
+                            <span class="hidden sm:inline text-white/30">|</span>
+                            <span class="hidden sm:inline">STREAK: 2/2</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span id="hud-h-chip" class="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-[2px] border border-white/10 text-[10px] font-mono text-[#8E95A5]">HELMET: --</span>
+                            <span id="hud-v-chip" class="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-[2px] border border-white/10 text-[10px] font-mono text-[#8E95A5]">VEST: --</span>
+                        </div>
+                    </div>
+
+                    <!-- Reconnecting Overlay -->
+                    <div id="cam-reconnect-badge" class="absolute inset-0 bg-black/85 backdrop-blur-sm hidden flex flex-col items-center justify-center gap-3 z-30">
+                        <i class="fa-solid fa-satellite-dish text-2xl text-[#FF6B00] animate-bounce"></i>
+                        <span class="text-xs font-mono font-bold text-[#F4F4F6] tracking-wider">CONNECTING SENTINEL FEED...</span>
+                        <span class="text-[10px] font-mono text-[#8E95A5]">Auto-reconnecting optical stream</span>
+                    </div>
+                </div>
+
+                <!-- Animated Interactive Sub-bar: 60fps Sonar Radar & Proximity -->
+                <div class="flex items-center justify-between text-xs font-mono text-[#8E95A5] pt-3 px-1">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+                        <span class="text-[#F4F4F6] font-medium">YOLOv8 Sentinel AI Active</span>
+                        <button type="button" onclick="openSchematicModal()" class="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[2px] bg-[#1A1E26] hover:bg-[#242933] border border-[rgba(255,255,255,0.08)] text-[11px] text-[#FF6B00] transition-colors">
+                            <i class="fa-solid fa-cube text-[10px]"></i> 3D Blueprint
+                        </button>
+                    </div>
+
+                    <!-- Ultrasonic Sonar Visualizer with Canvas Radar & Equalizer Waveform -->
+                    <div class="flex items-center gap-3">
+                        <div class="relative w-7 h-7 flex items-center justify-center">
+                            <canvas id="sonar-canvas" width="28" height="28" class="rounded-full bg-black/60 border border-[rgba(255,107,0,0.3)] shadow-[0_0_8px_rgba(255,107,0,0.2)]"></canvas>
+                        </div>
+                        <!-- Mini Signal Equalizer -->
+                        <div id="sonar-eq" class="hidden sm:flex items-end gap-1 h-3.5 px-1">
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                            <div class="eq-bar"></div>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-xs">
+                            <span class="text-[#8E95A5]">PROXIMITY:</span>
+                            <span id="proximity-val" class="font-bold text-[#FF6B00] text-sm tracking-wide">--- cm</span>
+                        </div>
+                        <div class="hidden sm:flex items-center gap-1 bg-[#1A1E26] px-2 py-1 rounded-[2px] border border-[rgba(255,255,255,0.06)]">
+                            <span id="zone-chip" class="text-[10px] text-[#10B981] font-bold">READY</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Decision Card with Isometric Gate Twin & 15s Ring (5 cols) -->
+            <div id="status-hero-card" class="lg:col-span-5 panel p-5 sm:p-6 flex flex-col justify-between hero-glow-idle transition-all duration-300">
+                
+                <!-- Status Word Block with Ambient Lighting -->
+                <div>
+                    <div class="text-[11px] font-mono uppercase text-[#8E95A5] tracking-widest flex items-center justify-between mb-1">
+                        <span>GATE DECISION ARBITRATION</span>
+                        <span id="state-timer" class="text-[#8E95A5] font-bold">READY</span>
+                    </div>
+                    <!-- Big Status Word (78px Barlow Condensed 700 uppercase) -->
+                    <h1 id="status-word" class="font-condensed font-extrabold text-5xl sm:text-6xl lg:text-[76px] leading-none uppercase tracking-tight text-[#F4F4F6] my-2 transition-all duration-200">
+                        STANDBY
+                    </h1>
+                    <!-- Status Microcopy -->
+                    <p id="status-microcopy" class="text-sm text-[#8E95A5] mt-1 font-medium">
+                        Waiting for next person
+                    </p>
+                </div>
+
+                <!-- Chips: Helmet & Vest Verification -->
+                <div class="my-4 pt-3 border-t border-[rgba(255,255,255,0.08)] flex flex-wrap gap-2.5">
+                    <span id="chip-helmet" class="chip chip-neutral">
+                        <span id="dot-helmet" class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                        <span>HELMET: SCANNING</span>
+                    </span>
+                    <span id="chip-vest" class="chip chip-neutral">
+                        <span id="dot-vest" class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                        <span>VEST: SCANNING</span>
+                    </span>
+                </div>
+
+                <!-- Physical Servo Barrier Twin with Strobe Beacon & Radial Countdown Ring -->
+                <div class="p-4 bg-[#0F1116] border border-[rgba(255,255,255,0.08)] rounded-[4px] flex items-center justify-between mb-4 relative overflow-hidden shadow-lg">
+                    <!-- Left: Isometric Physical Servo Vector Graphic -->
+                    <div class="flex items-center gap-4">
+                        <svg class="w-24 h-14" viewBox="0 0 130 65">
+                            <!-- Pedestal Floor & Shadow -->
+                            <ellipse cx="26" cy="58" rx="20" ry="4" fill="rgba(0,0,0,0.4)"/>
+                            <!-- Pedestal Base Stand -->
+                            <rect x="12" y="52" width="28" height="6" rx="1" fill="#1A1E26" stroke="#2E3440" stroke-width="1"/>
+                            <rect x="18" y="24" width="16" height="30" fill="#151820" stroke="#363C4A" stroke-width="1"/>
+                            
+                            <!-- Allen Screws -->
+                            <circle cx="21" cy="28" r="1.2" fill="#8E95A5"/>
+                            <circle cx="31" cy="28" r="1.2" fill="#8E95A5"/>
+                            <circle cx="21" cy="48" r="1.2" fill="#8E95A5"/>
+                            <circle cx="31" cy="48" r="1.2" fill="#8E95A5"/>
+
+                            <!-- Active LED Strobe Beacon Tower -->
+                            <g id="led-beacon">
+                                <rect x="23" y="12" width="6" height="12" rx="2" fill="#1F232B" stroke="#363C4A" stroke-width="1"/>
+                                <circle id="beacon-bulb" cx="26" cy="18" r="3" fill="#8E95A5"/>
+                            </g>
+
+                            <!-- Motor Pivot Gear Hub -->
+                            <circle cx="26" cy="42" r="6" fill="#242933" stroke="#FF6B00" stroke-width="2"/>
+                            <circle cx="26" cy="42" r="2" fill="#FF6B00"/>
+
+                            <!-- 90-Degree Servo Arm with Animated Smooth Sweep & Hazard Chevrons -->
+                            <g id="mini-barrier-arm" class="servo-arm" style="transform: rotate(0deg); transform-origin: 26px 42px;">
+                                <!-- Arm Frame -->
+                                <rect x="26" y="38" width="90" height="8" rx="2" fill="#FF6B00"/>
+                                <!-- 45-degree Black Stripes -->
+                                <line x1="42" y1="38" x2="49" y2="46" stroke="#0B0D11" stroke-width="3.5"/>
+                                <line x1="58" y1="38" x2="65" y2="46" stroke="#0B0D11" stroke-width="3.5"/>
+                                <line x1="74" y1="38" x2="81" y2="46" stroke="#0B0D11" stroke-width="3.5"/>
+                                <line x1="90" y1="38" x2="97" y2="46" stroke="#0B0D11" stroke-width="3.5"/>
+                                <line x1="106" y1="38" x2="113" y2="46" stroke="#0B0D11" stroke-width="3.5"/>
+                                <!-- Arm Tip Reflector -->
+                                <rect x="114" y="39" width="2" height="6" fill="#FFFFFF"/>
+                            </g>
+                        </svg>
+
+                        <div>
+                            <div class="text-[10px] font-mono uppercase text-[#8E95A5]">Servo Actuator (SG90 Pin 6)</div>
+                            <div id="barrier-text" class="text-xs font-mono font-bold text-[#F4F4F6] mt-0.5">CLOSED (00°)</div>
+                            <div class="text-[10px] font-mono text-[#8E95A5] mt-0.5">1.10s Sweep Trajectory</div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Circular 15s Radial Countdown Ring Gauge -->
+                    <div class="flex items-center gap-3">
+                        <div class="relative w-12 h-12 flex items-center justify-center">
+                            <svg class="w-12 h-12" viewBox="0 0 48 48">
+                                <circle cx="24" cy="24" r="20" stroke="#242933" stroke-width="3.5" fill="none"/>
+                                <circle id="timer-ring" class="timer-circle" cx="24" cy="24" r="20" stroke="#FF6B00" stroke-width="3.5" fill="none" stroke-dasharray="125.6" stroke-dashoffset="125.6" stroke-linecap="round"/>
+                            </svg>
+                            <span id="hold-timer-text" class="absolute font-mono text-xs font-bold text-[#FF6B00]">0.0s</span>
+                        </div>
+                        <div class="hidden sm:block text-right">
+                            <div class="text-[10px] font-mono uppercase text-[#8E95A5]">ENTRY HOLD</div>
+                            <div class="text-[11px] font-mono text-[#F4F4F6] font-semibold">15.0s Rest</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 16x2 Character Blue LCD Hardware Twin (PCF8574 I2C 0x27) -->
+                <div class="mb-4 bg-[#0A2254] border-2 border-[#1E40AF] rounded-[4px] px-3.5 py-2.5 font-mono text-xs text-[#93C5FD] shadow-[inset_0_0_16px_rgba(30,64,175,0.7),0_0_12px_rgba(37,99,235,0.25)] tracking-wider">
+                    <div class="flex items-center justify-between text-[10px] text-[#60A5FA]/80 border-b border-[#1E3A8A]/60 pb-1 mb-1.5">
+                        <span class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-tv text-[9px] text-[#38BDF8]"></i>
+                            <b>HD44780 LCD TWIN (PIN A4/A5)</b>
+                        </span>
+                        <span class="flex items-center gap-1 text-[9px] text-emerald-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> SYNC COM5
+                        </span>
+                    </div>
+                    <div id="lcd-twin-l1" class="font-bold tracking-widest text-[#DBEAFE] truncate">PPE GATE: STANDBY</div>
+                    <div id="lcd-twin-l2" class="text-[11px] text-[#93C5FD] tracking-wide mt-0.5 truncate">WAITING APPROACH</div>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="grid grid-cols-3 gap-2.5">
+                    <button onclick="overrideOpen()" class="btn-primary" title="Force Open Gate for 15 seconds">
+                        <i class="fa-solid fa-door-open"></i> OPEN (15s)
+                    </button>
+                    <button onclick="overrideClose()" class="btn-secondary" title="Force Close Gate to 0 degrees">
+                        <i class="fa-solid fa-door-closed"></i> CLOSE GATE
+                    </button>
+                    <button onclick="sendTelegramTest()" id="btn-tg" class="btn-secondary" title="Dispatch Telegram Bot Test Alert">
+                        <i class="fa-solid fa-paper-plane text-[#38BDF8]"></i> TELEGRAM TEST
+                    </button>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- --------------------------------------------------------------------- -->
+        <!-- 2. KPI STRIP: 4 TILES WITH GLOW ON HOVER & COUNT-UP                   -->
+        <!-- --------------------------------------------------------------------- -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <div class="panel panel-interactive p-4 flex flex-col justify-between">
+                <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-[#FF6B00] font-bold">■</span> TOTAL CHECKS (24H)
+                </div>
+                <div id="kpi-total" class="font-mono text-3xl sm:text-4xl font-bold text-[#F4F4F6] mt-2 tracking-tight">0</div>
+                <div class="text-xs font-mono text-[#8E95A5] mt-1">Total gate verifications</div>
+            </div>
+
+            <div class="panel panel-interactive p-4 flex flex-col justify-between">
+                <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-[#10B981] font-bold">■</span> GRANTED (PASS)
+                </div>
+                <div id="kpi-granted" class="font-mono text-3xl sm:text-4xl font-bold text-[#10B981] mt-2 tracking-tight">0</div>
+                <div class="text-xs font-mono text-[#8E95A5] mt-1">Compliant personnel entries</div>
+            </div>
+
+            <div class="panel panel-interactive p-4 flex flex-col justify-between">
+                <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-[#EF4444] font-bold">■</span> DENIED (VIOLATIONS)
+                </div>
+                <div id="kpi-denied" class="font-mono text-3xl sm:text-4xl font-bold text-[#F87171] mt-2 tracking-tight">0</div>
+                <div class="text-xs font-mono text-[#8E95A5] mt-1">Flagged non-compliant checks</div>
+            </div>
+
+            <div class="panel panel-interactive p-4 flex flex-col justify-between">
+                <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-[#FFB800] font-bold">■</span> COMPLIANCE RATE
+                </div>
+                <div id="kpi-rate" class="font-mono text-3xl sm:text-4xl font-bold text-[#FFB800] mt-2 tracking-tight">0%</div>
+                <div class="text-xs font-mono text-[#8E95A5] mt-1">Overall PPE verification score</div>
+            </div>
+
+        </section>
+
+        <!-- --------------------------------------------------------------------- -->
+        <!-- 3. LOWER SECTION: 12-HR CHART + MISSING BARS + LIVE LOG                -->
+        <!-- --------------------------------------------------------------------- -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+            <!-- Left: 12-Hour Stacked Bar Chart & Missing Bars (7 cols) -->
+            <div class="lg:col-span-7 flex flex-col gap-5">
+                
+                <!-- 12-Hour Hourly Checks Chart -->
+                <div class="panel p-4 sm:p-5">
+                    <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                        <div>
+                            <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider">ACTIVITY HISTOGRAM</div>
+                            <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6] mt-0.5">CHECKS PER HOUR (LAST 12 HOURS)</h2>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs font-mono">
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#10B981] rounded-[1px] shadow-[0_0_6px_rgba(16,185,129,0.5)]"></span> Granted</span>
+                            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#EF4444] rounded-[1px] shadow-[0_0_6px_rgba(239,68,68,0.5)]"></span> Denied</span>
+                        </div>
+                    </div>
+
+                    <!-- 12 Stacked Bars Container -->
+                    <div id="hour-bars-container" class="h-44 mt-5 flex items-end justify-between gap-1.5 px-2 pb-2">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Deficiency Breakdown with 3D Equipment Render Graphic -->
+                <div class="panel p-4 sm:p-5">
+                    <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                        <div>
+                            <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider">DEFICIENCY BREAKDOWN</div>
+                            <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6] mt-0.5">PPE SAFETY GEAR COMPLIANCE</h2>
+                        </div>
+                        <span class="text-xs font-mono text-[#10B981] flex items-center gap-1.5 bg-[#10B981]/10 px-2 py-0.5 rounded border border-[#10B981]/30">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse"></span> YOLOV8 ENFORCEMENT
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center mt-4">
+                        <!-- Left: 3D Product Render Graphic with Interactive Hotspots (5 cols) -->
+                        <div class="md:col-span-5 relative rounded-[4px] overflow-hidden border border-[rgba(255,255,255,0.1)] group shadow-xl bg-black">
+                            <img src="/static/ppe_equipment_render.jpg" alt="PPE Gear 3D Model" class="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-700" onerror="this.onerror=null; this.src='/static/placeholder.jpg';">
+                            
+                            <!-- Interactive Hotspot: Helmet -->
+                            <div class="absolute top-[22%] left-[32%] group/pin cursor-pointer" title="Class 0: Hardhat">
+                                <span class="absolute -inset-1.5 rounded-full bg-[#FF6B00]/40 hotspot-ping"></span>
+                                <span class="relative block w-3 h-3 rounded-full bg-[#FF6B00] border-2 border-white shadow-[0_0_8px_#FF6B00]"></span>
+                                <div class="absolute left-4 -top-2 opacity-0 group-hover/pin:opacity-100 transition-opacity bg-black/90 px-2 py-0.5 rounded border border-[#FF6B00]/50 text-[9px] font-mono text-[#F4F4F6] whitespace-nowrap z-20 pointer-events-none">
+                                    HARDHAT [CLASS 0]
+                                </div>
+                            </div>
+
+                            <!-- Interactive Hotspot: Vest -->
+                            <div class="absolute top-[60%] left-[62%] group/pin cursor-pointer" title="Class 7: Safety Vest">
+                                <span class="absolute -inset-1.5 rounded-full bg-[#FFB800]/40 hotspot-ping"></span>
+                                <span class="relative block w-3 h-3 rounded-full bg-[#FFB800] border-2 border-white shadow-[0_0_8px_#FFB800]"></span>
+                                <div class="absolute left-4 -top-2 opacity-0 group-hover/pin:opacity-100 transition-opacity bg-black/90 px-2 py-0.5 rounded border border-[#FFB800]/50 text-[9px] font-mono text-[#F4F4F6] whitespace-nowrap z-20 pointer-events-none">
+                                    REFLECTIVE VEST [CLASS 7]
+                                </div>
+                            </div>
+
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-end p-2.5 pointer-events-none">
+                                <span class="font-condensed font-bold text-xs uppercase tracking-wider text-[#F4F4F6]">Mandatory Safety Gear</span>
+                                <span class="text-[10px] font-mono text-[#FF6B00]">Hardhat • Reflective Vest</span>
+                            </div>
+                        </div>
+
+                        <!-- Right: Deficiency Bars (7 cols) -->
+                        <div class="md:col-span-7 flex flex-col gap-4">
+                            <!-- Helmet -->
+                            <div>
+                                <div class="flex justify-between items-center text-xs font-mono mb-1.5">
+                                    <span class="font-semibold text-[#F4F4F6] flex items-center gap-1.5"><i class="fa-solid fa-helmet-safety text-[#FF6B00]"></i> SAFETY HELMET</span>
+                                    <span id="missing-helmet-count" class="text-[#EF4444] font-bold">0 violations</span>
+                                </div>
+                                <div class="h-3 bg-[#242933] rounded-[2px] overflow-hidden shadow-inner">
+                                    <div id="missing-helmet-bar" class="h-full bg-gradient-to-r from-red-600 to-[#EF4444] shadow-[0_0_8px_rgba(239,68,68,0.5)] transition-all duration-700" style="width: 0%;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Vest -->
+                            <div>
+                                <div class="flex justify-between items-center text-xs font-mono mb-1.5">
+                                    <span class="font-semibold text-[#F4F4F6] flex items-center gap-1.5"><i class="fa-solid fa-vest text-[#FFB800]"></i> REFLECTIVE VEST</span>
+                                    <span id="missing-vest-count" class="text-[#FFB800] font-bold">0 violations</span>
+                                </div>
+                                <div class="h-3 bg-[#242933] rounded-[2px] overflow-hidden shadow-inner">
+                                    <div id="missing-vest-bar" class="h-full bg-gradient-to-r from-amber-600 to-[#FF6B00] shadow-[0_0_8px_rgba(255,107,0,0.5)] transition-all duration-700" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right: Live Event Log (5 cols) -->
+            <div class="lg:col-span-5 panel p-4 sm:p-5 flex flex-col h-[520px]">
+                <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                    <div>
+                        <div class="text-[11px] font-mono text-[#8E95A5] uppercase tracking-wider">REALTIME AUDIT FEED</div>
+                        <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6] mt-0.5">LIVE EVENT LOG (MAX 60)</h2>
+                    </div>
+                    <a href="/reports" class="text-xs font-mono text-[#FF6B00] hover:underline flex items-center gap-1 group">
+                        View All <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                    </a>
+                </div>
+
+                <!-- Event Table Container -->
+                <div class="flex-grow overflow-y-auto mt-2 pr-1 divide-y divide-[rgba(255,255,255,0.04)] font-mono text-xs" id="event-log-list">
+                    <div class="py-12 text-center text-[#8E95A5] text-xs">
+                        <i class="fa-solid fa-spinner fa-spin text-lg mb-2 text-[#FF6B00]"></i>
+                        <div>Synchronizing live event log...</div>
+                    </div>
+                </div>
+
+                <!-- Log Footer -->
+                <div class="pt-3 border-t border-[rgba(255,255,255,0.06)] flex items-center justify-between text-[11px] font-mono text-[#8E95A5]">
+                    <span>Source: <b class="text-[#F4F4F6]">logs/events.csv</b></span>
+                    <a href="/api/export/csv" class="text-[#FF6B00] hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> CSV Export
+                    </a>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- 5. ENGINEERING PROJECT TEAM CREDITS                                   -->
+        <!-- ===================================================================== -->
+        <section class="panel p-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-gradient-to-r from-[#141822]/90 via-[#0F131C]/80 to-[rgba(10,13,18,0.7)] border-t-2 border-t-[#FF6B00]/40 shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-[#FF6B00]/15 border border-[#FF6B00]/40 flex items-center justify-center text-[#FF6B00] text-sm shrink-0 shadow-[0_0_12px_rgba(255,107,0,0.3)]">
+                    <i class="fa-solid fa-code-commit"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-mono uppercase text-[#FF6B00] font-bold tracking-wider">PROJECT CREDITS</span>
+                    <h4 class="font-display font-bold text-sm text-[#F4F4F6] uppercase">DEVELOPED BY</h4>
+                </div>
+            </div>
+
+            <!-- Team Members Avatars & Info with LinkedIn Badges -->
+            <div class="flex items-center gap-6 sm:gap-8 flex-wrap justify-center">
+                <!-- Member 1: Vedant Patke -->
+                <div class="flex items-center gap-2.5 group">
+                    <img src="/static/team_vedant_patke.jpg" alt="Vedant Patke" class="w-9 h-9 rounded-full object-cover border-2 border-[#FF6B00] shadow-[0_0_10px_rgba(255,107,0,0.4)] group-hover:scale-110 transition-transform">
+                    <div class="text-left font-mono">
+                        <div class="text-xs font-bold text-[#F4F4F6] flex items-center gap-1.5">
+                            <span>Vedant Patke</span>
+                            <a href="https://www.linkedin.com/in/vedant-patke-0761a232a/" target="_blank" rel="noopener noreferrer" class="text-[#0A66C2] hover:text-[#38BDF8] transition-transform hover:scale-115 p-0.5" title="View Vedant Patke on LinkedIn">
+                                <i class="fa-brands fa-linkedin text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="text-[10px] text-[#8E95A5]">Computer Science & AI Engineering Student</div>
+                    </div>
+                </div>
+
+                <!-- Member 2: Sandesh Vairagar -->
+                <div class="flex items-center gap-2.5 group">
+                    <img src="/static/team_sandesh_vairagar.jpg" alt="Sandesh Vairagar" class="w-9 h-9 rounded-full object-cover border-2 border-[#38BDF8] shadow-[0_0_10px_rgba(56,189,248,0.35)] group-hover:scale-110 transition-transform">
+                    <div class="text-left font-mono">
+                        <div class="text-xs font-bold text-[#F4F4F6] flex items-center gap-1.5">
+                            <span>Sandesh Vairagar</span>
+                            <a href="https://www.linkedin.com/in/sandesh-vairagar" target="_blank" rel="noopener noreferrer" class="text-[#0A66C2] hover:text-[#38BDF8] transition-transform hover:scale-115 p-0.5" title="View Sandesh Vairagar on LinkedIn">
+                                <i class="fa-brands fa-linkedin text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="text-[10px] text-[#8E95A5]">Computer Science & Engineering (AI) Student</div>
+                    </div>
+                </div>
+
+                <!-- Member 3: Prathamesh Shelke -->
+                <div class="flex items-center gap-2.5 group">
+                    <img src="/static/team_prathamesh_shelke.jpg" alt="Prathamesh Shelke" class="w-9 h-9 rounded-full object-cover border-2 border-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.35)] group-hover:scale-110 transition-transform">
+                    <div class="text-left font-mono">
+                        <div class="text-xs font-bold text-[#F4F4F6] flex items-center gap-1.5">
+                            <span>Prathamesh Shelke</span>
+                            <a href="https://in.linkedin.com/in/prathamesh-shelke-86829b32a" target="_blank" rel="noopener noreferrer" class="text-[#0A66C2] hover:text-[#38BDF8] transition-transform hover:scale-115 p-0.5" title="View Prathamesh Shelke on LinkedIn">
+                                <i class="fa-brands fa-linkedin text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="text-[10px] text-[#8E95A5]">Software Engineer & Full-Stack Developer</div>
+                    </div>
+                </div>
+            </div>
+
+            <a href="/about#team" class="text-xs font-mono text-[#8E95A5] hover:text-[#FF6B00] transition-colors flex items-center gap-1 group">
+                Team Profiles <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+            </a>
+        </section>
+
+        <!-- --------------------------------------------------------------------- -->
+        <!-- 4. BOTTOM MICRO-TELEMETRY TICKER                                      -->
+        <!-- --------------------------------------------------------------------- -->
+        <section class="panel px-4 py-2 flex flex-wrap items-center justify-between gap-3 text-[11px] font-mono text-[#8E95A5]">
+            <div class="flex items-center gap-4 flex-wrap">
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span> NODE: <b>GATE-01</b></span>
+                <span>BAUD: <b>9600 8-N-1</b></span>
+                <span>SERIAL RX: <b class="text-[#10B981]">ACTIVE</b></span>
+                <span>MODEL: <b>YOLOv8 best.pt (640x640)</b></span>
+            </div>
+            <div class="flex items-center gap-4 flex-wrap">
+                <span>HOLD REST: <b>15.00s</b></span>
+                <span>TELEGRAM COOLDOWN: <b class="text-[#FFB800]">40.0s</b></span>
+                <span class="text-[#FF6B00]">AUTONOMOUS SYSTEM</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- LIGHTBOX MODAL -->
+        <!-- 3D BLUEPRINT SCHEMATIC MODAL -->
+    <div id="schematic-modal" onclick="closeSchematicModal()" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-4">
+        <div class="relative max-w-2xl w-full panel p-5" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                <div>
+                    <h3 class="font-condensed font-extrabold text-xl uppercase tracking-wider text-[#F4F4F6]">PROTOTYPE GATE 01 — 3D HARDWARE SCHEMATIC</h3>
+                    <div class="text-xs font-mono text-[#8E95A5]">Edge AI Vision + ATmega328P Microcontroller + SG90 Servo Actuator</div>
+                </div>
+                <button onclick="closeSchematicModal()" class="text-[#8E95A5] hover:text-[#F4F4F6] text-lg p-1.5">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="mt-4 relative rounded-[4px] overflow-hidden border border-[rgba(255,255,255,0.1)] shadow-2xl bg-black aspect-[16/10]">
+                <img src="/static/iot_smart_safety_gate_schematic.jpg" alt="3D Exploded Hardware Schematic" class="w-full h-full object-cover">
+                <div class="absolute bottom-3 left-3 right-3 bg-black/85 backdrop-blur-md p-3 rounded-[3px] border border-[rgba(255,255,255,0.1)] text-xs font-mono text-[#8E95A5] flex flex-wrap justify-between gap-2">
+                    <span><b>SERVO ARM:</b> Pin 6 (0° - 90°)</span>
+                    <span><b>RADAR:</b> Pins 4 & 5 (HC-SR04)</span>
+                    <span><b>BEACONS:</b> Pins 8 & 9</span>
+                    <span><b>BUZZER:</b> Pin 10 (2.4kHz)</span>
+                </div>
+            </div>
+
+            <div class="mt-4 flex justify-between items-center text-xs font-mono text-[#8E95A5]">
+                <span>Photorealistic Engineering Assembly Model</span>
+                <span class="text-[10px]">Press <kbd class="px-1.5 py-0.5 bg-[#242933] text-[#F4F4F6] rounded">ESC</kbd> to dismiss</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox" onclick="closeLightbox()" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-4">
+        <div class="relative max-w-xl w-full panel p-4" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                <div>
+                    <h3 id="lightbox-title" class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">VIOLATION SNAPSHOT</h3>
+                    <div id="lightbox-meta" class="text-xs font-mono text-[#8E95A5]">2026-11-02 14:32:05 — Missing: Vest</div>
+                </div>
+                <button onclick="closeLightbox()" class="text-[#8E95A5] hover:text-[#F4F4F6] text-lg p-1.5">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="mt-3 bg-black rounded-[3px] overflow-hidden aspect-[4/3] flex items-center justify-center border border-[rgba(255,255,255,0.08)]">
+                <img id="lightbox-img" src="" alt="Violation Snapshot" class="w-full h-full object-contain">
+            </div>
+            <div class="mt-3 flex justify-between items-center text-xs font-mono text-[#8E95A5]">
+                <span>Snapshot Evidence File</span>
+                <span class="text-[10px]">Press <kbd class="px-1.5 py-0.5 bg-[#242933] text-[#F4F4F6] rounded">ESC</kbd> to close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT: REALTIME POLLING, AUDIO SYNTH, ANIMATION -->
+    <script>
+        // State
+        let lastState = "IDLE";
+        let gateHoldActive = false;
+        let gateHoldStartTime = 0;
+        const GATE_HOLD_TOTAL = 15.0; // 15 seconds rest window
+        let knownEventTimestamps = new Set();
+        let audioEnabled = true;
+
+        // Web Audio Synthesizer (Zero External Dependencies)
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playRadarBlip() {
+            if (!audioEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.12);
+        }
+
+        function playGrantedChime() {
+            if (!audioEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+            [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.45);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + idx * 0.08);
+                osc.stop(now + idx * 0.08 + 0.45);
+            });
+        }
+
+        function playDeniedPulse() {
+            if (!audioEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc1.type = 'sawtooth';
+            osc2.type = 'square';
+            osc1.frequency.setValueAtTime(185, now);
+            osc2.frequency.setValueAtTime(220, now);
+
+            gain.gain.setValueAtTime(0.15, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + 0.45);
+            osc2.stop(now + 0.45);
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            const icon = document.getElementById('icon-audio');
+            icon.className = audioEnabled ? "fa-solid fa-volume-high text-[#FF6B00]" : "fa-solid fa-volume-xmark text-[#8E95A5]";
+        }
+
+        // Top Clock
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const el = document.getElementById('top-clock');
+            if (el) el.innerText = `${h}:${m}:${s}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Lightbox
+        function openLightbox(src, title, meta) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox-title').innerText = title || "VIOLATION SNAPSHOT";
+            document.getElementById('lightbox-meta').innerText = meta || "";
+            document.getElementById('lightbox').classList.remove('hidden');
+        }
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+        }
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { closeLightbox(); closeSchematicModal(); }
+        });
+
+        // Quick Actions
+        async function overrideOpen() {
+            initAudio();
+            try { await fetch('/api/override/open', { method: 'POST' }); } catch(e){}
+        }
+        async function overrideClose() {
+            initAudio();
+            try { await fetch('/api/override/close', { method: 'POST' }); } catch(e){}
+        }
+        async function simulateNear() {
+            initAudio();
+            try { await fetch('/api/simulate/near', { method: 'POST' }); } catch(e){}
+        }
+        async function sendTelegramTest() {
+            initAudio();
+            const btn = document.getElementById('btn-tg');
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> SENDING...`;
+            try {
+                const res = await fetch('/api/telegram/test', { method: 'POST' });
+                const d = await res.json();
+                if (d.status === 'ok') {
+                    btn.innerHTML = `<i class="fa-solid fa-check text-[#10B981]"></i> SENT!`;
+                } else {
+                    btn.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[#F87171]"></i> START BOT`;
+                }
+            } catch(e) {
+                btn.innerHTML = `FAILED`;
+            }
+            setTimeout(() => {
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane text-[#38BDF8]"></i> TELEGRAM TEST`;
+            }, 3000);
+        }
+
+        // Realtime Polling Loop (1s frequency)
+        async function pollStatus() {
+            try {
+                const res = await fetch('/api/status');
+                if (!res.ok) throw new Error("Offline");
+                const data = await res.json();
+
+                // Dynamic Laser Line Toggle
+                const camLaser = document.getElementById('camera-laser');
+                if (camLaser) {
+                    if (data.state === 'CHECKING') {
+                        camLaser.classList.remove('hidden');
+                    } else {
+                        camLaser.classList.add('hidden');
+                    }
+                }
+
+                // Sync 16x2 Blue Backlight LCD Twin
+                const lcd1 = document.getElementById('lcd-twin-l1');
+                const lcd2 = document.getElementById('lcd-twin-l2');
+                if (lcd1 && lcd2) {
+                    if (data.lcd_line1) lcd1.innerText = data.lcd_line1;
+                    if (data.lcd_line2) lcd2.innerText = data.lcd_line2;
+                }
+
+                // Sync HUD Confidence Badges on Camera Frame
+                const hudH = document.getElementById('hud-h-chip');
+                const hudV = document.getElementById('hud-v-chip');
+                if (hudH) {
+                    if (data.helmet_detected) {
+                        hudH.className = "bg-emerald-950/80 backdrop-blur-md px-2 py-0.5 rounded-[2px] border border-emerald-500/50 text-[10px] font-mono text-emerald-300 font-bold";
+                        hudH.innerText = `HELMET: ${data.helmet_conf || 95}%`;
+                    } else {
+                        hudH.className = "bg-red-950/80 backdrop-blur-md px-2 py-0.5 rounded-[2px] border border-red-500/50 text-[10px] font-mono text-red-300 font-bold";
+                        hudH.innerText = "HELMET: MISSING";
+                    }
+                }
+                if (hudV) {
+                    if (data.vest_detected) {
+                        hudV.className = "bg-emerald-950/80 backdrop-blur-md px-2 py-0.5 rounded-[2px] border border-emerald-500/50 text-[10px] font-mono text-emerald-300 font-bold";
+                        hudV.innerText = `VEST: ${data.vest_conf || 92}%`;
+                    } else {
+                        hudV.className = "bg-red-950/80 backdrop-blur-md px-2 py-0.5 rounded-[2px] border border-red-500/50 text-[10px] font-mono text-red-300 font-bold";
+                        hudV.innerText = "VEST: MISSING";
+                    }
+                }
+
+                // State transition & Sound
+                if (data.state !== lastState) {
+                    const heroCard = document.getElementById('status-hero-card');
+                    if (data.state === 'RESULT_PASS') {
+                        playGrantedChime();
+                        gateHoldStartTime = Date.now();
+                        gateHoldActive = true;
+                    } else if (data.state === 'RESULT_FAIL') {
+                        playDeniedPulse();
+                        gateHoldActive = false;
+                        heroCard.classList.remove('shake-active');
+                        void heroCard.offsetWidth; // trigger reflow
+                        heroCard.classList.add('shake-active');
+                    } else if (data.state === 'CHECKING') {
+                        playRadarBlip();
+                        gateHoldActive = false;
+                    } else if (data.state === 'IDLE') {
+                        gateHoldActive = false;
+                    }
+                    lastState = data.state;
+                }
+
+                // Status Word & Hero Ambient Lighting
+                const sWord = document.getElementById('status-word');
+                const sMicro = document.getElementById('status-microcopy');
+                const sTimer = document.getElementById('state-timer');
+                const heroCard = document.getElementById('status-hero-card');
+                const bulb = document.getElementById('beacon-bulb');
+
+                heroCard.className = "lg:col-span-5 panel p-5 sm:p-6 flex flex-col justify-between transition-all duration-300 ";
+
+                if (data.state === 'RESULT_PASS') {
+                    sWord.innerText = "ACCESS GRANTED";
+                    sWord.style.color = "#10B981";
+                    sMicro.innerText = "Helmet and vest verified";
+                    sTimer.innerText = "CLEARANCE ACTIVE";
+                    sTimer.style.color = "#10B981";
+                    heroCard.classList.add("hero-glow-pass");
+                    heroCard.style.backgroundColor = "rgba(16, 185, 129, 0.08)";
+                    if (bulb) {
+                        bulb.className = "beacon-green";
+                        bulb.setAttribute('fill', '#10B981');
+                    }
+                } else if (data.state === 'RESULT_FAIL') {
+                    sWord.innerText = "ACCESS DENIED";
+                    sWord.style.color = "#F87171";
+                    const missList = [];
+                    if (!data.helmet_detected) missList.push("helmet");
+                    if (!data.vest_detected) missList.push("vest");
+                    sMicro.innerText = `Missing: ${missList.join(', ') || 'compliance'}`;
+                    sTimer.innerText = "ENTRY BLOCKED";
+                    sTimer.style.color = "#F87171";
+                    heroCard.classList.add("hero-glow-fail");
+                    heroCard.style.backgroundColor = "rgba(239, 68, 68, 0.09)";
+                    if (bulb) {
+                        bulb.className = "beacon-red";
+                        bulb.setAttribute('fill', '#EF4444');
+                    }
+                } else if (data.state === 'CHECKING') {
+                    sWord.innerText = "CHECKING PPE...";
+                    sWord.style.color = "#FFB800";
+                    sMicro.innerText = "Verifying safety equipment";
+                    sTimer.innerText = "ANALYZING";
+                    sTimer.style.color = "#FFB800";
+                    heroCard.classList.add("hero-glow-checking");
+                    heroCard.style.backgroundColor = "rgba(255, 184, 0, 0.06)";
+                    if (bulb) {
+                        bulb.className = "beacon-amber";
+                        bulb.setAttribute('fill', '#FFB800');
+                    }
+                } else {
+                    sWord.innerText = "STANDBY";
+                    sWord.style.color = "#F4F4F6";
+                    sMicro.innerText = "Waiting for next person";
+                    sTimer.innerText = "READY";
+                    sTimer.style.color = "#8E95A5";
+                    heroCard.classList.add("hero-glow-idle");
+                    heroCard.style.backgroundColor = "var(--surface)";
+                    if (bulb) {
+                        bulb.className = "";
+                        bulb.setAttribute('fill', '#8E95A5');
+                    }
+                }
+
+                // Chips
+                const cHelmet = document.getElementById('chip-helmet');
+                const dHelmet = document.getElementById('dot-helmet');
+                if (data.helmet_detected) {
+                    cHelmet.className = "chip chip-ok";
+                    dHelmet.className = "w-2 h-2 rounded-full bg-[#10B981]";
+                    cHelmet.lastElementChild.innerText = "HELMET: OK";
+                } else {
+                    cHelmet.className = "chip chip-bad";
+                    dHelmet.className = "w-2 h-2 rounded-full bg-[#EF4444]";
+                    cHelmet.lastElementChild.innerText = "HELMET: MISSING";
+                }
+
+                const cVest = document.getElementById('chip-vest');
+                const dVest = document.getElementById('dot-vest');
+                if (data.vest_detected) {
+                    cVest.className = "chip chip-ok";
+                    dVest.className = "w-2 h-2 rounded-full bg-[#10B981]";
+                    cVest.lastElementChild.innerText = "VEST: OK";
+                } else {
+                    cVest.className = "chip chip-bad";
+                    dVest.className = "w-2 h-2 rounded-full bg-[#EF4444]";
+                    cVest.lastElementChild.innerText = "VEST: MISSING";
+                }
+
+                // Barrier Arm and Angle
+                const arm = document.getElementById('mini-barrier-arm');
+                const bText = document.getElementById('barrier-text');
+                if (data.barrier_open) {
+                    arm.style.transform = "rotate(-90deg)";
+                    bText.innerText = "OPEN (90°)";
+                    bText.style.color = "#10B981";
+                } else {
+                    arm.style.transform = "rotate(0deg)";
+                    bText.innerText = "CLOSED (00°)";
+                    bText.style.color = "#F4F4F6";
+                }
+
+                // Circular 15s Hold Countdown Progress Ring
+                const timerText = document.getElementById('hold-timer-text');
+                const timerRing = document.getElementById('timer-ring');
+                const circumference = 125.6; // 2 * PI * 20
+
+                if (gateHoldActive) {
+                    const elapsed = (Date.now() - gateHoldStartTime) / 1000;
+                    const remaining = Math.max(0, GATE_HOLD_TOTAL - elapsed);
+                    timerText.innerText = remaining.toFixed(1) + 's';
+                    
+                    const progress = remaining / GATE_HOLD_TOTAL;
+                    const offset = circumference * (1 - progress);
+                    timerRing.style.strokeDashoffset = offset;
+                    timerRing.style.stroke = '#10B981';
+
+                    if (remaining <= 0) {
+                        gateHoldActive = false;
+                        timerRing.style.strokeDashoffset = circumference;
+                    }
+                } else {
+                    timerText.innerText = "0.0s";
+                    timerRing.style.strokeDashoffset = circumference;
+                    timerRing.style.stroke = '#FF6B00';
+                }
+
+                // Proximity Distance & Zone Tag
+                const pVal = document.getElementById('proximity-val');
+                const zChip = document.getElementById('zone-chip');
+                if (data.distance !== undefined && data.distance !== null) {
+                    pVal.innerText = `${data.distance} cm`; radarTargetDist = data.distance;
+                    const d = data.distance;
+                    if (d < 60) {
+                        zChip.innerText = "ZONE: ACTIVE ENTRY";
+                        zChip.className = "text-[10px] text-[#10B981] font-bold";
+                    } else if (d < 120) {
+                        zChip.innerText = "ZONE: APPROACHING";
+                        zChip.className = "text-[10px] text-[#FFB800] font-bold";
+                    } else {
+                        zChip.innerText = "ZONE: CLEAR";
+                        zChip.className = "text-[10px] text-[#8E95A5] font-bold";
+                    }
+                }
+
+            } catch (err) {
+                const badge = document.getElementById('conn-badge');
+                if (badge) {
+                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="font-bold tracking-wider">OFFLINE</span>`;
+                    badge.className = "flex items-center gap-2 px-3 py-1 rounded-[3px] bg-red-950/40 border border-red-800/50 text-red-300";
+                }
+            }
+        }
+
+        // Stats Polling Loop (every 2.5s)
+        async function pollStats() {
+            try {
+                const res = await fetch('/api/stats');
+                if (!res.ok) return;
+                const stats = await res.json();
+
+                // KPI Numbers
+                animateNumber('kpi-total', stats.total_checks ?? 0);
+                animateNumber('kpi-granted', stats.granted_count ?? 0);
+                animateNumber('kpi-denied', stats.denied_count ?? 0);
+                animateNumber('kpi-rate', (stats.compliance_rate ?? 0), '%');
+
+                // Missing Deficiencies
+                const missingHelmet = stats.missing_breakdown?.helmet ?? 0;
+                const missingVest = stats.missing_breakdown?.vest ?? 0;
+                const maxMissing = Math.max(1, missingHelmet + missingVest);
+
+                document.getElementById('missing-helmet-count').innerText = `${missingHelmet} violations`;
+                document.getElementById('missing-vest-count').innerText = `${missingVest} violations`;
+                document.getElementById('missing-helmet-bar').style.width = `${(missingHelmet / maxMissing) * 100}%`;
+                document.getElementById('missing-vest-bar').style.width = `${(missingVest / maxMissing) * 100}%`;
+
+                // Render 12 Stacked Hourly Bars
+                renderHourBars(stats.hourly_bars || []);
+
+                // Render Live Event Log
+                renderEventLog(stats.events || []);
+
+            } catch(e) {}
+        }
+
+        function animateNumber(id, targetVal, suffix = '') {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const current = parseInt(el.innerText) || 0;
+            if (current === targetVal) return;
+            el.innerText = targetVal + suffix;
+        }
+
+        function renderHourBars(bars) {
+            const container = document.getElementById('hour-bars-container');
+            if (!container) return;
+
+            let maxCount = 1;
+            bars.forEach(b => {
+                const tot = (b.granted || 0) + (b.denied || 0);
+                if (tot > maxCount) maxCount = tot;
+            });
+
+            container.innerHTML = bars.map(b => {
+                const g = b.granted || 0;
+                const d = b.denied || 0;
+                const tot = g + d;
+                const gPct = tot > 0 ? (g / maxCount) * 100 : 0;
+                const dPct = tot > 0 ? (d / maxCount) * 100 : 0;
+
+                return `
+                    <div class="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end cursor-pointer">
+                        <div class="w-full max-w-[28px] flex flex-col items-stretch justify-end h-32 rounded-t-[2px] overflow-hidden bg-[#1A1E26] group-hover:bg-[#242933] transition-colors">
+                            <div style="height: ${dPct}%;" class="w-full bg-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.4)] transition-all duration-500"></div>
+                            <div style="height: ${gPct}%;" class="w-full bg-[#10B981] shadow-[0_0_6px_rgba(16,185,129,0.4)] transition-all duration-500"></div>
+                        </div>
+                        <span class="text-[10px] font-mono text-[#8E95A5] mt-1 group-hover:text-[#F4F4F6] transition-colors">${b.hour_label || ''}</span>
+                        <!-- Hover Tooltip -->
+                        <div class="absolute bottom-16 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-black/95 text-[10px] font-mono text-white p-2.5 rounded border border-[rgba(255,255,255,0.18)] shadow-2xl z-20 whitespace-nowrap transform group-hover:translate-y-[-2px]">
+                            <div class="font-bold text-[#FF6B00] border-b border-white/10 pb-1 mb-1">${b.hour_label || 'Hour'}</div>
+                            <div class="text-[#10B981] flex justify-between gap-3"><span>Granted:</span> <b>${g}</b></div>
+                            <div class="text-[#F87171] flex justify-between gap-3"><span>Denied:</span> <b>${d}</b></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderEventLog(events) {
+            const list = document.getElementById('event-log-list');
+            if (!list) return;
+
+            if (!events || events.length === 0) {
+                list.innerHTML = `<div class="py-12 text-center text-[#8E95A5]">No decisions recorded yet today.</div>`;
+                return;
+            }
+
+            const html = events.slice(0, 60).map(ev => {
+                const isPass = ev.result === 'COMPLIANT' || ev.result === 'PASS';
+                const isNew = !knownEventTimestamps.has(ev.timestamp);
+                knownEventTimestamps.add(ev.timestamp);
+
+                const pillClass = isPass ? "chip-ok" : "chip-bad";
+                const pillText = isPass ? "GRANTED" : "DENIED";
+
+                let snapBtn = "";
+                if (ev.snapshot) {
+                    snapBtn = `
+                        <button onclick="openLightbox('/${ev.snapshot}', 'VIOLATION SNAPSHOT', '${ev.timestamp} — Missing: ${ev.missing}')" class="text-[#FF6B00] hover:text-[#FFA040] transition-transform hover:scale-110 p-1" title="View snapshot evidence">
+                            <i class="fa-solid fa-image"></i>
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="py-2.5 px-2 flex items-center justify-between gap-3 hover:bg-white/[0.04] transition-colors rounded-[2px] ${isNew ? 'row-new' : ''}">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[#8E95A5]">${ev.timestamp.split(' ')[1] || ev.timestamp}</span>
+                            <span class="chip ${pillClass} !py-0.5 !px-2 !text-[10px]">${pillText}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-right text-[#8E95A5] truncate max-w-[150px] sm:max-w-[200px]">${ev.missing ? 'Missing: ' + ev.missing : 'Complete PPE'}</span>
+                            ${snapBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.innerHTML = html;
+        }
+
+        // Initialize Loops
+        
+        // 60 FPS HTML5 Canvas Sonar Radar Loop
+        let radarAngle = 0;
+        let radarTargetDist = 999;
+        function initSonarRadar() {
+            const canvas = document.getElementById('sonar-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const maxR = cx - 2;
+
+            function renderRadar() {
+                ctx.clearRect(0, 0, w, h);
+
+                // Rings
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+                ctx.lineWidth = 1;
+                [0.4, 0.75, 1.0].forEach(f => {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, maxR * f, 0, Math.PI * 2);
+                    ctx.stroke();
+                });
+
+                // Crosshairs
+                ctx.beginPath();
+                ctx.moveTo(cx - maxR, cy); ctx.lineTo(cx + maxR, cy);
+                ctx.moveTo(cx, cy - maxR); ctx.lineTo(cx, cy + maxR);
+                ctx.stroke();
+
+                // Sweep Needle
+                ctx.strokeStyle = "#FF6B00";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(radarAngle) * maxR, cy + Math.sin(radarAngle) * maxR);
+                ctx.stroke();
+
+                // Target Blip if person detected (< 120cm)
+                if (radarTargetDist > 0 && radarTargetDist <= 120) {
+                    const blipR = (radarTargetDist / 120) * (maxR - 3);
+                    const bAngle = Math.PI * 1.35;
+                    const bx = cx + Math.cos(bAngle) * blipR;
+                    const by = cy + Math.sin(bAngle) * blipR;
+
+                    ctx.fillStyle = radarTargetDist < 60 ? "#10B981" : "#FF6B00";
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 2.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                radarAngle += 0.06;
+                requestAnimationFrame(renderRadar);
+            }
+            requestAnimationFrame(renderRadar);
+        }
+        initSonarRadar();
+
+        
+        // =====================================================================
+        // SYSTEM SIMULATION & TESTING CONSOLE TRIGGER FUNCTIONS
+        // =====================================================================
+        async function demoCompliantAccess() {
+            const btn = document.getElementById('btn-demo-pass');
+            if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> EXECUTING PASS...`;
+            try {
+                const res = await fetch('/api/simulate/pass', { method: 'POST' });
+                const d = await res.json();
+                playGrantedChime();
+                pollStatus();
+                pollStats();
+            } catch(e) {
+                console.error("Demo pass error:", e);
+            }
+            setTimeout(() => {
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> TEST COMPLIANT ENTRY (15s GATE)`;
+            }, 1200);
+        }
+
+        async function demoPPEViolation() {
+            const btn = document.getElementById('btn-demo-fail');
+            if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> EXECUTING VIOLATION...`;
+            try {
+                const res = await fetch('/api/simulate/violation', { method: 'POST' });
+                const d = await res.json();
+                playDeniedPulse();
+                pollStatus();
+                pollStats();
+            } catch(e) {
+                console.error("Demo fail error:", e);
+            }
+            setTimeout(() => {
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-400"></i> TEST PPE VIOLATION (TELEGRAM)`;
+            }, 1200);
+        }
+
+        function openSchematicModal() {
+            document.getElementById('schematic-modal').classList.remove('hidden');
+        }
+        function closeSchematicModal() {
+            document.getElementById('schematic-modal').classList.add('hidden');
+        }
+
+        // Background Switcher & Particle System
+        const BG_THEMES = {
+            'construction': "url('/static/bg_construction_twin.jpg')",
+            'refinery': "url('/static/bg_industrial_twin.jpg')",
+            'checkpoint': "url('/static/bg_smart_checkpoint.jpg')"
+        };
+
+        function setThemeBg(theme) {
+            if (!BG_THEMES[theme]) theme = 'construction';
+            document.body.style.setProperty('--bg-image', BG_THEMES[theme]);
+            localStorage.setItem('sentinel_bg_theme', theme);
+
+            ['construction', 'refinery', 'checkpoint'].forEach(k => {
+                const btn = document.getElementById(`bg-btn-${k}`);
+                if (!btn) return;
+                if (k === theme) {
+                    btn.className = "px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-white font-bold transition-all shadow-[0_0_8px_rgba(255,107,0,0.5)]";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all";
+                }
+            });
+        }
+
+        // Restore saved theme on startup
+        const initialTheme = localStorage.getItem('sentinel_bg_theme') || 'construction';
+        setThemeBg(initialTheme);
+
+        // Ambient Floating Telemetry Particle Loop
+        function initBackgroundParticles() {
+            const canvas = document.getElementById('bg-particles');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = window.innerWidth;
+            let h = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            });
+
+            const particles = [];
+            const count = 35;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    radius: Math.random() * 1.8 + 0.6,
+                    vx: (Math.random() - 0.5) * 0.35,
+                    vy: -Math.random() * 0.45 - 0.15,
+                    alpha: Math.random() * 0.5 + 0.15,
+                    color: Math.random() > 0.45 ? '255, 107, 0' : '0, 240, 255'
+                });
+            }
+
+            function renderParticles() {
+                ctx.clearRect(0, 0, w, h);
+                for (let i = 0; i < count; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.y < 0) {
+                        p.y = h + 10;
+                        p.x = Math.random() * w;
+                    }
+                    if (p.x < 0) p.x = w;
+                    if (p.x > w) p.x = 0;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = p.color.startsWith('255') ? '#FF6B00' : '#00F0FF';
+                    ctx.fill();
+                }
+                requestAnimationFrame(renderParticles);
+            }
+            requestAnimationFrame(renderParticles);
+        }
+        initBackgroundParticles();
+
+        // Camera Feed Watchdog
+        function initCameraWatchdog() {
+            const camImg = document.getElementById('camera-stream');
+            const reconnectBadge = document.getElementById('cam-reconnect-badge');
+            if (!camImg) return;
+            
+            let isRetrying = false;
+            camImg.onerror = function() {
+                console.warn('Camera feed dropped. Retrying...');
+                if (reconnectBadge) reconnectBadge.classList.remove('hidden');
+                if (isRetrying) return;
+                isRetrying = true;
+                setTimeout(() => {
+                    camImg.src = '/video_feed?t=' + Date.now();
+                    isRetrying = false;
+                }, 1500);
+            };
+            
+            camImg.onload = function() {
+                if (reconnectBadge) reconnectBadge.classList.add('hidden');
+            };
+        }
+        initCameraWatchdog();
+
+        setInterval(pollStatus, 1000);
+        setInterval(pollStats, 2500);
+        pollStatus();
+        pollStats();
+    </script>
+</body>
+</html>

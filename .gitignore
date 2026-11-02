@@ -1,0 +1,23 @@
+# Large third-party programs & driver installers
+Arduino IDE/
+*.exe
+ftdi_drivers/
+
+# Python cache & runtime logs
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+run_output.txt
+
+# System / IDE generated artifacts
+.system_generated/
+scratch/
+repo_ref/
+.vscode/
+.idea/
+
+# Large snapshots (keep directory)
+snapshots/*.jpg
+snapshots/*.bak*
+!snapshots/.gitkeep

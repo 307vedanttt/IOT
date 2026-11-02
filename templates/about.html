@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Sentinel — System Architecture & Technical Blueprint</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Barlow, Barlow Condensed, IBM Plex Mono -->
+    <!-- Google Fonts: Chakra Petch, Plus Jakarta Sans, JetBrains Mono, Barlow Condensed -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --canvas: #0D0F13;
+            --surface: #14171D;
+            --surface-elevated: #1B2028;
+            --track: #262B34;
+            --accent: #FF6B00;
+            --granted: #10B981;
+            --denied-fill: #EF4444;
+            --denied-text: #F87171;
+            --hazard-yellow: #FFB800;
+            --text: #F4F4F6;
+            --muted: #8E95A5;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background-color: var(--canvas);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(255, 107, 0, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 35%),
+                linear-gradient(180deg, rgba(7, 9, 13, 0.82) 0%, rgba(7, 9, 13, 0.90) 45%, rgba(7, 9, 13, 0.97) 100%),
+                var(--bg-image, url('/static/bg_construction_twin.jpg'));
+            background-size: 100% 100%, 100% 100%, 100% 100%, cover;
+            background-position: center top;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        .font-condensed { font-family: 'Chakra Petch', 'Barlow Condensed', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace; }
+        .font-display { font-family: 'Chakra Petch', sans-serif; letter-spacing: 0.04em; }
+
+        /* Modern Glassmorphic Panels with Frosted Ambient Blur */
+        .panel {
+            background-color: rgba(14, 18, 25, 0.74);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .brand-hazard-sq {
+            width: 24px;
+            height: 24px;
+            background: #FF6B00;
+            background-image: repeating-linear-gradient(45deg, #FF6B00, #FF6B00 5px, #0D0F13 5px, #0D0F13 10px);
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(255, 107, 0, 0.35);
+            flex-shrink: 0;
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF;
+        }
+
+        .flow-step {
+            background: #101217;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+        .flow-step:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--canvas); }
+        ::-webkit-scrollbar-thumb { background: #262B34; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col relative">
+    <!-- Ambient Floating Telemetry Particle Canvas -->
+    <canvas id="bg-particles" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="h-14 bg-[#14171D]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-6 sm:gap-8">
+            <a href="/" class="flex items-center gap-3 text-decoration-none group">
+                <div class="relative flex items-center gap-2">
+                    <img src="/static/sentinel_edge_ai_badge.jpg" alt="Sentinel Edge AI" class="w-8 h-8 rounded-full border border-[#FF6B00]/60 shadow-[0_0_12px_rgba(255,107,0,0.5)] object-cover group-hover:scale-105 transition-transform">
+                    <div class="brand-hazard-sq hidden sm:block"></div>
+                </div>
+                <div>
+                    <span class="font-condensed font-extrabold text-xl tracking-wider text-[#F4F4F6] uppercase">PPE CHECKPOINT</span>
+                    <span class="hidden sm:inline-block ml-2 text-[10px] font-mono text-[#FF6B00] border border-[#FF6B00]/40 px-1 rounded-[2px]">GATE 01</span>
+                </div>
+            </a>
+            <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
+                <a href="/" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Live Gate</a>
+                <a href="/reports" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Violation Reports</a>
+                <a href="/events" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Event History</a>
+                <a href="/settings" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Settings</a>
+                <a href="/about" class="h-14 flex items-center text-[#F4F4F6] border-b-2 border-[#FF6B00] font-semibold px-0.5">About</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3 sm:gap-5 text-xs font-mono">
+            <div id="conn-badge" class="flex items-center gap-2 px-3 py-1 rounded-[3px] bg-[#1B2028] border border-[rgba(255,255,255,0.08)] text-[#F4F4F6]">
+                <span id="conn-dot" class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+                <span id="conn-text" class="font-bold tracking-wider">SYSTEM ACTIVE</span>
+            </div>
+                        <!-- Interactive Background Digital Twin Switcher -->
+            <div class="hidden xl:flex items-center bg-[#101318]/90 backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-[3px] p-0.5 text-[11px] font-mono shadow-sm">
+                <button type="button" onclick="setThemeBg('construction')" id="bg-btn-construction" class="px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-white font-bold transition-all shadow-[0_0_8px_rgba(255,107,0,0.5)]" title="Digital Twin Construction Site">🏗️ Site</button>
+                <button type="button" onclick="setThemeBg('refinery')" id="bg-btn-refinery" class="px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all" title="Industrial Cyber Refinery">🏭 Refinery</button>
+                <button type="button" onclick="setThemeBg('checkpoint')" id="bg-btn-checkpoint" class="px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all" title="Smart AI Gate Checkpoint">🛰️ Gate</button>
+            </div>
+            <div id="top-clock" class="text-[#F4F4F6] font-medium hidden sm:inline tracking-wider">14:32:07</div>
+            <div class="text-[#8E95A5] hidden lg:inline">Safety Officer</div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="relative z-10 flex-grow p-4 sm:p-6 max-w-6xl w-full mx-auto flex flex-col gap-6">
+
+        <!-- CINEMATIC 3D HERO BANNER -->
+        <div class="relative rounded-[6px] overflow-hidden border border-[rgba(255,255,255,0.12)] shadow-2xl bg-black aspect-[21/9] sm:aspect-[24/8] group">
+            <img src="/static/smart_construction_gate_hero.jpg" alt="Autonomous PPE Sentinel Checkpoint" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent flex flex-col justify-end p-5 sm:p-7">
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                    <span class="px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-black font-mono font-bold text-[10px] tracking-wider uppercase">AUTONOMOUS GATE SENTINEL</span>
+                    <span class="px-2 py-0.5 rounded-[2px] bg-white/10 text-[#F4F4F6] font-mono text-[10px]">EDGE AI + ARDUINO UNO + TELEGRAM AUTOMATION</span>
+                </div>
+                <h1 class="font-condensed font-extrabold text-2xl sm:text-4xl uppercase tracking-wider text-[#F4F4F6] drop-shadow-md">
+                    GATE 01 SENTINEL — SYSTEM ARCHITECTURE & TECHNICAL BLUEPRINT
+                </h1>
+                <p class="text-xs sm:text-sm text-[#CBD5E1] max-w-3xl mt-1 leading-relaxed">
+                    Automated safety gate ensuring 100% compliance with personal protective equipment (Hardhat + High-Vis Vest) before physical site entry is authorized.
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[rgba(255,255,255,0.08)]">
+            <div class="text-xs font-mono text-[#8E95A5] flex items-center gap-2">
+                <span class="text-[#10B981] font-bold">●</span> ACTIVE PRODUCTION NODE: <b>GATE-01 // COM5</b>
+            </div>
+            <a href="/" class="btn-secondary !h-8 text-xs">
+                <i class="fa-solid fa-arrow-left"></i> Return to Live Gate
+            </a>
+        </div>
+
+        <!-- 1. PLAIN-ENGLISH DECISION RULE (Blueprint Page 7 & 8) -->
+        <section class="panel p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-brain text-[#FF6B00]"></i>
+                    <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">Deterministic Access Control Decision Logic</h2>
+                </div>
+                <span class="font-mono text-xs text-[#10B981] bg-[#10B981]/10 px-2 py-0.5 rounded border border-[#10B981]/30">DETERMINISTIC LOGIC</span>
+            </div>
+
+            <div class="bg-[#101217] p-4 rounded-[3px] border border-[rgba(255,255,255,0.06)] text-xs sm:text-sm text-[#F4F4F6] leading-relaxed">
+                <p class="mb-2">
+                    <strong class="text-[#FF6B00]">Core Thesis:</strong> "Nobody passes without complete protective equipment." The system enforces safety at the physical barrier through a deterministic 4-stage pipeline:
+                </p>
+                <ol class="list-decimal list-inside space-y-2 text-[#8E95A5] mt-3">
+                    <li>
+                        <strong class="text-[#F4F4F6]">Ultrasonic Detection:</strong> HC-SR04 measures target distance continuously. When a worker approaches within <strong class="text-[#F4F4F6]">100 cm</strong>, Arduino sends <code class="font-mono text-[#FF6B00]">D:&lt;cm&gt;</code> to the laptop via serial to initiate verification.
+                    </li>
+                    <li>
+                        <strong class="text-[#F4F4F6]">Computer Vision Evaluation:</strong> Laptop webcam captures live video. YOLOv8 processes <strong class="text-[#F4F4F6]">640×640</strong> frames at 25+ FPS. For access to be granted, both <strong class="text-[#10B981]">HELMET</strong> and <strong class="text-[#10B981]">VEST</strong> must be detected concurrently with confidence <strong class="text-[#F4F4F6]">≥ 0.35</strong> across <strong class="text-[#F4F4F6]">2 consecutive frames</strong> within a 1.2-second window.
+                    </li>
+                    <li>
+                        <strong class="text-[#10B981]">Access Granted Outcome:</strong> Laptop sends <code class="font-mono text-[#10B981]">G</code> to Arduino. Green LED activates, Red LED/Buzzer stay OFF, and the SG90 servo sweeps smoothly (1.10s) from 0° to 90°. It <strong class="text-[#F4F4F6]">rests stationary for 15.0 seconds</strong> to allow safe worker entry, then closes (1.10s).
+                    </li>
+                    <li>
+                        <strong class="text-[#F87171]">Access Denied Outcome:</strong> If either gear item is missing when the verification window expires, laptop sends <code class="font-mono text-[#F87171]">R</code> to Arduino. Red LED flashes, 2.4kHz buzzer warble sounds, high-resolution snapshot is saved to disk, event logged to CSV, and an <strong class="text-[#F4F4F6]">instant photo alert is dispatched to Telegram</strong>. Barrier remains locked at 0°.
+                    </li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 2. SYSTEM BLOCK DIAGRAM & 3D HARDWARE SCHEMATIC (Blueprint Page 7 & 8) -->
+        <section class="panel p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-diagram-project text-[#FF6B00]"></i>
+                    <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">System Architecture & 3D Hardware Assembly</h2>
+                </div>
+                <span class="font-mono text-xs text-[#FF6B00] bg-[#FF6B00]/10 px-2 py-0.5 rounded border border-[#FF6B00]/30">PHYSICAL + DIGITAL TWIN</span>
+            </div>
+
+            <!-- 3D Hardware Layout Visual Callout -->
+            <div class="relative rounded-[4px] overflow-hidden border border-[rgba(255,255,255,0.1)] shadow-xl bg-black aspect-[16/9] sm:aspect-[21/9] group">
+                <img src="/static/gate_checkpoint_hero.jpg" alt="3D Hardware Assembly" class="w-full h-full object-cover group-hover:scale-102 transition-transform duration-700">
+                <div class="absolute bottom-3 left-3 right-3 bg-black/85 backdrop-blur-md p-3 rounded-[3px] border border-[rgba(255,255,255,0.12)] text-xs font-mono text-[#8E95A5] flex flex-wrap justify-between gap-3 shadow-lg">
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#FF6B00]"></span> <b>SERVO ACTUATOR:</b> SG90 Pin 6 (0° - 90°)</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#38BDF8]"></span> <b>ULTRASONIC:</b> HC-SR04 Pins 4 & 5</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#10B981]"></span> <b>STATUS BEACONS:</b> Green Pin 8, Red Pin 9</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#EF4444]"></span> <b>ALARM:</b> Buzzer Pin 10 (2.4kHz)</span>
+                </div>
+            </div>
+
+            <!-- CSS Block Diagram Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
+                <!-- Block 1 -->
+                <div class="flow-step flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] text-[#FF6B00] font-bold uppercase tracking-wider mb-1">STAGE 1: INPUT SENSING</div>
+                        <h3 class="font-bold text-[#F4F4F6] text-sm font-condensed">SENSORS & VISION</h3>
+                        <ul class="mt-2 text-[#8E95A5] space-y-1 list-disc list-inside">
+                            <li>HD USB Web Camera</li>
+                            <li>HC-SR04 Ultrasonic</li>
+                            <li>Trigger: Distance &lt; 100cm</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-[rgba(255,255,255,0.06)] text-[10px] text-[#8E95A5]">
+                        Pings every 100ms
+                    </div>
+                </div>
+
+                <!-- Block 2 -->
+                <div class="flow-step flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] text-[#FF6B00] font-bold uppercase tracking-wider mb-1">STAGE 2: EDGE AI & LOGIC</div>
+                        <h3 class="font-bold text-[#F4F4F6] text-sm font-condensed">PYTHON 3.11 BACKEND</h3>
+                        <ul class="mt-2 text-[#8E95A5] space-y-1 list-disc list-inside">
+                            <li>YOLOv8 best.pt (640x640)</li>
+                            <li>FastAPI & Uvicorn Server</li>
+                            <li>State Machine & Interlock</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-[rgba(255,255,255,0.06)] text-[10px] text-[#10B981]">
+                        Serial: G, R, C, H, V, I
+                    </div>
+                </div>
+
+                <!-- Block 3 -->
+                <div class="flow-step flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] text-[#FF6B00] font-bold uppercase tracking-wider mb-1">STAGE 3: EMBEDDED CONTROLLER</div>
+                        <h3 class="font-bold text-[#F4F4F6] text-sm font-condensed">ARDUINO UNO R3</h3>
+                        <ul class="mt-2 text-[#8E95A5] space-y-1 list-disc list-inside">
+                            <li>Non-blocking timing</li>
+                            <li>1.10s Sweep (12,222µs/deg)</li>
+                            <li>15.00s Stationary Hold</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-[rgba(255,255,255,0.06)] text-[10px] text-[#8E95A5]">
+                        Baud: 9600 (8-N-1)
+                    </div>
+                </div>
+
+                <!-- Block 4 -->
+                <div class="flow-step flex flex-col justify-between">
+                    <div>
+                        <div class="text-[10px] text-[#FF6B00] font-bold uppercase tracking-wider mb-1">STAGE 4: ACTUATORS & ALERTS</div>
+                        <h3 class="font-bold text-[#F4F4F6] text-sm font-condensed">PHYSICAL & CLOUD OUTPUT</h3>
+                        <ul class="mt-2 text-[#8E95A5] space-y-1 list-disc list-inside">
+                            <li>SG90 Servo Barrier Arm</li>
+                            <li>16x2 I2C LCD Display</li>
+                            <li>Red/Green LEDs + Buzzer</li>
+                            <li>Telegram Bot Alerts</li>
+                        </ul>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-[rgba(255,255,255,0.06)] text-[10px] text-[#FF6B00]">
+                        Instant Push Notification
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. TECHNOLOGY STACK INVENTORY -->
+        <section class="panel p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-[#FF6B00]"></i>
+                    <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">Technology Stack & Neural Vision Models</h2>
+                </div>
+                <span class="font-mono text-xs text-[#38BDF8] bg-[#38BDF8]/10 px-2 py-0.5 rounded border border-[#38BDF8]/30">YOLOV8 ENFORCEMENT</span>
+            </div>
+
+            <!-- 3D Equipment Banner -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-center bg-[#101217] p-4 rounded-[4px] border border-[rgba(255,255,255,0.08)] shadow-lg">
+                <div class="md:col-span-4 rounded overflow-hidden border border-[rgba(255,255,255,0.12)] shadow aspect-[16/10] bg-black">
+                    <img src="/static/ppe_equipment_render.jpg" alt="PPE Equipment 3D Studio" class="w-full h-full object-cover">
+                </div>
+                <div class="md:col-span-8 flex flex-col gap-2 text-xs">
+                    <div class="text-[#FF6B00] font-mono font-bold uppercase tracking-wider text-[11px]">Computer Vision Model: YOLOv8 best.pt (640x640)</div>
+                    <p class="text-[#CBD5E1] leading-relaxed">
+                        Trained on specialized industrial safety datasets to detect Hardhat (Class 0), Safety Vest (Class 7), and Person (Class 5).
+                        Real-time inference on laptop camera feed at 25-30 FPS. Evaluates worker compliance across a deterministic temporal window to prevent false triggers.
+                    </p>
+                    <div class="flex items-center gap-4 pt-1 font-mono text-[10px] text-[#8E95A5] flex-wrap">
+                        <span>Confidence: <b class="text-[#10B981]">≥ 0.35</b></span>
+                        <span>Streak: <b class="text-[#10B981]">2 Frames</b></span>
+                        <span>Entry Rest: <b class="text-[#FF6B00]">15.0s</b></span>
+                        <span>Telegram Alert Cooldown: <b class="text-[#FFB800]">40.0s</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                <div class="bg-[#101217] p-3.5 rounded-[3px] border border-[rgba(255,255,255,0.06)]">
+                    <span class="text-[#FF6B00] font-mono font-bold">01. ARTIFICIAL INTELLIGENCE</span>
+                    <h4 class="font-bold text-[#F4F4F6] mt-1 text-sm">Ultralytics YOLOv8</h4>
+                    <p class="text-[#8E95A5] mt-1 text-[11px]">Trained on custom industrial PPE datasets to detect hardhats, construction vests, and worker silhouettes.</p>
+                </div>
+                <div class="bg-[#101217] p-3.5 rounded-[3px] border border-[rgba(255,255,255,0.06)]">
+                    <span class="text-[#FF6B00] font-mono font-bold">02. WEB APPLICATION</span>
+                    <h4 class="font-bold text-[#F4F4F5] mt-1 text-sm">FastAPI + Uvicorn</h4>
+                    <p class="text-[#8E95A5] mt-1 text-[11px]">Asynchronous ASGI server serving high-throughput REST endpoints, MJPEG video streaming, and CSV analytics.</p>
+                </div>
+                <div class="bg-[#101217] p-3.5 rounded-[3px] border border-[rgba(255,255,255,0.06)]">
+                    <span class="text-[#FF6B00] font-mono font-bold">03. EMBEDDED FIRMWARE</span>
+                    <h4 class="font-bold text-[#F4F4F6] mt-1 text-sm">Arduino C++ (ATmega328P)</h4>
+                    <p class="text-[#8E95A5] mt-1 text-[11px]">State machine implementing smooth servo trajectories, non-blocking ultrasonic sensing, and I2C LCD telemetry.</p>
+                </div>
+                <div class="bg-[#101217] p-3.5 rounded-[3px] border border-[rgba(255,255,255,0.06)]">
+                    <span class="text-[#FF6B00] font-mono font-bold">04. CLOUD AUTOMATION</span>
+                    <h4 class="font-bold text-[#F4F4F6] mt-1 text-sm">Telegram Bot API</h4>
+                    <p class="text-[#8E95A5] mt-1 text-[11px]">Two-way bot engine with auto-pairing, instant photo dispatch on non-compliance, and remote manual gate commands.</p>
+                </div>
+                <div class="bg-[#101217] p-3.5 rounded-[3px] border border-[rgba(255,255,255,0.06)]">
+                    <span class="text-[#FF6B00] font-mono font-bold">05. SERIAL PROTOCOL</span>
+                    <h4 class="font-bold text-[#F4F4F6] mt-1 text-sm">PySerial 9600 Baud</h4>
+                    <p class="text-[#8E95A5] mt-1 text-[11px]">Zero-overhead 1-byte control characters ensuring sub-millisecond command execution without parsing bottlenecks.</p>
+                </div>
+                <div class="bg-[#101217] p-3.5 rounded-[3px] border border-[rgba(255,255,255,0.06)]">
+                    <span class="text-[#FF6B00] font-mono font-bold">06. UI DESIGN SYSTEM</span>
+                    <h4 class="font-bold text-[#F4F4F6] mt-1 text-sm">Apex Industrial HUD</h4>
+                    <p class="text-[#8E95A5] mt-1 text-[11px]">Sharp 3-4px corner radii, Barlow Condensed typography, zero generic AI gradients, and 4.5:1 accessible contrast.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. ENGINEERING PROJECT TEAM (DEVELOPED BY) -->
+        <section id="team" class="panel p-6 flex flex-col gap-6">
+            <div class="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-users-gear text-[#FF6B00] text-lg"></i>
+                    <h2 class="font-display font-bold text-xl uppercase tracking-wider text-[#F4F4F6]">ENGINEERING PROJECT TEAM & SYSTEM DEVELOPERS</h2>
+                </div>
+                <span class="font-mono text-xs text-[#FF6B00] bg-[#FF6B00]/10 px-2.5 py-1 rounded border border-[#FF6B00]/30 font-semibold">CORE ENGINEERING TEAM</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <!-- Vedant Patke -->
+                <div class="panel p-5 flex flex-col items-center justify-between text-center bg-[#10141C]/80 border border-white/10 hover:border-[#FF6B00]/60 transition-all hover:-translate-y-1 shadow-lg group">
+                    <div>
+                        <div class="relative w-28 h-28 rounded-full overflow-hidden border-2 border-[#FF6B00] shadow-[0_0_18px_rgba(255,107,0,0.4)] mb-3.5 mx-auto group-hover:scale-105 transition-transform">
+                            <img src="/static/team_vedant_patke.jpg" alt="Vedant Patke" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-display font-bold text-lg text-[#F4F4F6] uppercase tracking-wide group-hover:text-[#FF6B00] transition-colors">Vedant Patke</h3>
+                        <div class="text-xs font-mono text-[#FF6B00] font-semibold mt-1">Computer Science & AI Engineering Student</div>
+                        <div class="text-xs text-[#CBD5E1] mt-2.5 leading-relaxed font-sans">
+                            Computer Science & Artificial Intelligence engineering student with a focus on machine learning algorithms, deep neural vision pipelines, and intelligent systems.
+                        </div>
+                    </div>
+                    <a href="https://www.linkedin.com/in/vedant-patke-0761a232a/" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[3px] bg-[#0A66C2]/15 hover:bg-[#0A66C2]/25 border border-[#0A66C2]/45 text-[#60A5FA] font-mono text-xs font-semibold transition-all hover:scale-105 shadow-[0_0_10px_rgba(10,102,194,0.25)]">
+                        <i class="fa-brands fa-linkedin text-sm text-[#38BDF8]"></i>
+                        <span>LinkedIn Profile</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                    </a>
+                </div>
+
+                <!-- Sandesh Vairagar -->
+                <div class="panel p-5 flex flex-col items-center justify-between text-center bg-[#10141C]/80 border border-white/10 hover:border-[#38BDF8]/60 transition-all hover:-translate-y-1 shadow-lg group">
+                    <div>
+                        <div class="relative w-28 h-28 rounded-full overflow-hidden border-2 border-[#38BDF8] shadow-[0_0_18px_rgba(56,189,248,0.4)] mb-3.5 mx-auto group-hover:scale-105 transition-transform">
+                            <img src="/static/team_sandesh_vairagar.jpg" alt="Sandesh Vairagar" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-display font-bold text-lg text-[#F4F4F6] uppercase tracking-wide group-hover:text-[#38BDF8] transition-colors">Sandesh Vairagar</h3>
+                        <div class="text-xs font-mono text-[#38BDF8] font-semibold mt-1">Computer Science & Engineering (AI) Student</div>
+                        <div class="text-xs text-[#CBD5E1] mt-2.5 leading-relaxed font-sans">
+                            Computer Science & Engineering (Artificial Intelligence) student, MERN Stack Developer, and Embedded Systems enthusiast building connected IoT hardware solutions.
+                        </div>
+                    </div>
+                    <a href="https://www.linkedin.com/in/sandesh-vairagar" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[3px] bg-[#0A66C2]/15 hover:bg-[#0A66C2]/25 border border-[#0A66C2]/45 text-[#60A5FA] font-mono text-xs font-semibold transition-all hover:scale-105 shadow-[0_0_10px_rgba(10,102,194,0.25)]">
+                        <i class="fa-brands fa-linkedin text-sm text-[#38BDF8]"></i>
+                        <span>LinkedIn Profile</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                    </a>
+                </div>
+
+                <!-- Prathamesh Shelke -->
+                <div class="panel p-5 flex flex-col items-center justify-between text-center bg-[#10141C]/80 border border-white/10 hover:border-[#10B981]/60 transition-all hover:-translate-y-1 shadow-lg group">
+                    <div>
+                        <div class="relative w-28 h-28 rounded-full overflow-hidden border-2 border-[#10B981] shadow-[0_0_18px_rgba(16,185,129,0.4)] mb-3.5 mx-auto group-hover:scale-105 transition-transform">
+                            <img src="/static/team_prathamesh_shelke.jpg" alt="Prathamesh Shelke" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="font-display font-bold text-lg text-[#F4F4F6] uppercase tracking-wide group-hover:text-[#10B981] transition-colors">Prathamesh Shelke</h3>
+                        <div class="text-xs font-mono text-[#10B981] font-semibold mt-1">Software Engineer & Full-Stack Developer</div>
+                        <div class="text-xs text-[#CBD5E1] mt-2.5 leading-relaxed font-sans">
+                            Software Engineer and Full-Stack Developer building high-performance modern web architectures, real-time cloud interfaces, and intelligent automated workflows.
+                        </div>
+                    </div>
+                    <a href="https://in.linkedin.com/in/prathamesh-shelke-86829b32a" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[3px] bg-[#0A66C2]/15 hover:bg-[#0A66C2]/25 border border-[#0A66C2]/45 text-[#60A5FA] font-mono text-xs font-semibold transition-all hover:scale-105 shadow-[0_0_10px_rgba(10,102,194,0.25)]">
+                        <i class="fa-brands fa-linkedin text-sm text-[#38BDF8]"></i>
+                        <span>LinkedIn Profile</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px] opacity-70"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER / METADATA -->
+        <footer class="pt-4 pb-6 border-t border-[rgba(255,255,255,0.08)] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-[#8E95A5]">
+            <div>Gate 01 Sentinel | Edge AI & Industrial IoT Access Control</div>
+            <div class="flex items-center gap-4">
+                <span>Apex Industrial HUD Design System</span>
+                <span class="text-[#10B981] flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#10B981]"></span> System Operational</span>
+            </div>
+        </footer>
+
+    </main>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const el = document.getElementById('top-clock');
+            if (el) el.innerText = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+    <!-- Shared Digital Twin Background & Particle Engine -->
+    <script>
+        const BG_THEMES = {
+            'construction': "url('/static/bg_construction_twin.jpg')",
+            'refinery': "url('/static/bg_industrial_twin.jpg')",
+            'checkpoint': "url('/static/bg_smart_checkpoint.jpg')"
+        };
+
+        function setThemeBg(theme) {
+            if (!BG_THEMES[theme]) theme = 'construction';
+            document.body.style.setProperty('--bg-image', BG_THEMES[theme]);
+            localStorage.setItem('sentinel_bg_theme', theme);
+
+            ['construction', 'refinery', 'checkpoint'].forEach(k => {
+                const btn = document.getElementById(`bg-btn-${k}`);
+                if (!btn) return;
+                if (k === theme) {
+                    btn.className = "px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-white font-bold transition-all shadow-[0_0_8px_rgba(255,107,0,0.5)]";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all";
+                }
+            });
+        }
+
+        const initialTheme = localStorage.getItem('sentinel_bg_theme') || 'construction';
+        setThemeBg(initialTheme);
+
+        function initBackgroundParticles() {
+            const canvas = document.getElementById('bg-particles');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = window.innerWidth;
+            let h = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            });
+
+            const particles = [];
+            const count = 30;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    radius: Math.random() * 1.8 + 0.6,
+                    vx: (Math.random() - 0.5) * 0.35,
+                    vy: -Math.random() * 0.4 - 0.15,
+                    alpha: Math.random() * 0.5 + 0.15,
+                    color: Math.random() > 0.45 ? '255, 107, 0' : '0, 240, 255'
+                });
+            }
+
+            function renderParticles() {
+                ctx.clearRect(0, 0, w, h);
+                for (let i = 0; i < count; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.y < 0) {
+                        p.y = h + 10;
+                        p.x = Math.random() * w;
+                    }
+                    if (p.x < 0) p.x = w;
+                    if (p.x > w) p.x = 0;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = p.color.startsWith('255') ? '#FF6B00' : '#00F0FF';
+                    ctx.fill();
+                }
+                requestAnimationFrame(renderParticles);
+            }
+            requestAnimationFrame(renderParticles);
+        }
+        initBackgroundParticles();
+    </script>
+</body>
+</html>

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Checkpoint — System Settings & Tuning</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Barlow, Barlow Condensed, IBM Plex Mono -->
+    <!-- Google Fonts: Chakra Petch, Plus Jakarta Sans, JetBrains Mono, Barlow Condensed -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome 6 Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --canvas: #0D0F13;
+            --surface: #14171D;
+            --surface-elevated: #1B2028;
+            --track: #262B34;
+            --accent: #FF6B00;
+            --granted: #10B981;
+            --denied-fill: #EF4444;
+            --denied-text: #F87171;
+            --hazard-yellow: #FFB800;
+            --text: #F4F4F6;
+            --muted: #8E95A5;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background-color: var(--canvas);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(255, 107, 0, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(0, 240, 255, 0.08) 0%, transparent 35%),
+                linear-gradient(180deg, rgba(7, 9, 13, 0.82) 0%, rgba(7, 9, 13, 0.90) 45%, rgba(7, 9, 13, 0.97) 100%),
+                var(--bg-image, url('/static/bg_construction_twin.jpg'));
+            background-size: 100% 100%, 100% 100%, 100% 100%, cover;
+            background-position: center top;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+            color: var(--text);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        .font-condensed { font-family: 'Chakra Petch', 'Barlow Condensed', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace; }
+        .font-display { font-family: 'Chakra Petch', sans-serif; letter-spacing: 0.04em; }
+
+        /* Modern Glassmorphic Panels with Frosted Ambient Blur */
+        .panel {
+            background-color: rgba(14, 18, 25, 0.74);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .brand-hazard-sq {
+            width: 24px;
+            height: 24px;
+            background: #FF6B00;
+            background-image: repeating-linear-gradient(45deg, #FF6B00, #FF6B00 5px, #0D0F13 5px, #0D0F13 10px);
+            border-radius: 3px;
+            box-shadow: 0 0 10px rgba(255, 107, 0, 0.35);
+            flex-shrink: 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, #FF7B1A 0%, #FF6B00 100%);
+            color: #FFFFFF;
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            height: 40px;
+            padding: 0 18px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 2px 6px rgba(255, 107, 0, 0.25);
+        }
+        .btn-primary:hover {
+            background: #FF8526;
+            box-shadow: 0 0 12px rgba(255, 107, 0, 0.45);
+        }
+
+        .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text);
+            font-family: 'Barlow', sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF;
+        }
+
+        .btn-danger {
+            background-color: rgba(239, 68, 68, 0.12);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            height: 40px;
+            padding: 0 16px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-danger:hover {
+            background-color: rgba(239, 68, 68, 0.22);
+            border-color: rgba(239, 68, 68, 0.6);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--track);
+            border-radius: 3px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            background: var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 107, 0, 0.5);
+            transition: background 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #FFA040;
+        }
+
+        #toast {
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--canvas); }
+        ::-webkit-scrollbar-thumb { background: #262B34; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col relative">
+    <!-- Ambient Floating Telemetry Particle Canvas -->
+    <canvas id="bg-particles" class="fixed inset-0 pointer-events-none z-0"></canvas>
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="h-14 bg-[#14171D]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-6 sm:gap-8">
+            <a href="/" class="flex items-center gap-3 text-decoration-none group">
+                <div class="relative flex items-center gap-2">
+                    <img src="/static/sentinel_edge_ai_badge.jpg" alt="Sentinel Edge AI" class="w-8 h-8 rounded-full border border-[#FF6B00]/60 shadow-[0_0_12px_rgba(255,107,0,0.5)] object-cover group-hover:scale-105 transition-transform">
+                    <div class="brand-hazard-sq hidden sm:block"></div>
+                </div>
+                <div>
+                    <span class="font-condensed font-extrabold text-xl tracking-wider text-[#F4F4F6] uppercase">PPE CHECKPOINT</span>
+                    <span class="hidden sm:inline-block ml-2 text-[10px] font-mono text-[#FF6B00] border border-[#FF6B00]/40 px-1.5 py-0.5 rounded-[2px] bg-[#FF6B00]/10">GATE 01</span>
+                </div>
+            </a>
+            <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
+                <a href="/" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Live Gate</a>
+                <a href="/reports" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Violation Reports</a>
+                <a href="/events" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">Event History</a>
+                <a href="/settings" class="h-14 flex items-center text-[#F4F4F6] border-b-2 border-[#FF6B00] font-semibold px-0.5">Settings</a>
+                <a href="/about" class="h-14 flex items-center text-[#8E95A5] hover:text-[#F4F4F6] px-0.5 transition-colors">About</a>
+            </nav>
+        </div>
+
+        <div class="flex items-center gap-3 sm:gap-5 text-xs font-mono">
+            <div id="conn-badge" class="flex items-center gap-2 px-3 py-1 rounded-[3px] bg-[#1B2028] border border-[rgba(255,255,255,0.08)] text-[#F4F4F6]">
+                <span id="conn-dot" class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+                <span id="conn-text" class="font-bold tracking-wider">CONFIG LIVE</span>
+            </div>
+                        <!-- Interactive Background Digital Twin Switcher -->
+            <div class="hidden xl:flex items-center bg-[#101318]/90 backdrop-blur-md border border-[rgba(255,255,255,0.1)] rounded-[3px] p-0.5 text-[11px] font-mono shadow-sm">
+                <button type="button" onclick="setThemeBg('construction')" id="bg-btn-construction" class="px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-white font-bold transition-all shadow-[0_0_8px_rgba(255,107,0,0.5)]" title="Digital Twin Construction Site">🏗️ Site</button>
+                <button type="button" onclick="setThemeBg('refinery')" id="bg-btn-refinery" class="px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all" title="Industrial Cyber Refinery">🏭 Refinery</button>
+                <button type="button" onclick="setThemeBg('checkpoint')" id="bg-btn-checkpoint" class="px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all" title="Smart AI Gate Checkpoint">🛰️ Gate</button>
+            </div>
+            <div id="top-clock" class="text-[#F4F4F6] font-medium hidden sm:inline tracking-wider">14:32:07</div>
+            <div class="text-[#8E95A5] hidden lg:inline">Safety Officer</div>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="relative z-10 flex-grow p-4 sm:p-6 max-w-6xl w-full mx-auto flex flex-col gap-6">
+
+        <!-- HEADER & ACTIONS -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[rgba(255,255,255,0.08)]">
+            <div>
+                <div class="text-xs font-mono text-[#8E95A5] uppercase tracking-wider flex items-center gap-1.5">
+                    <span class="text-[#FF6B00] font-bold">■</span> SYSTEM CALIBRATION
+                </div>
+                <h1 class="font-condensed font-extrabold text-2xl sm:text-3xl uppercase tracking-wider text-[#F4F4F6] mt-1">GATE PARAMETERS & SENSOR TUNING</h1>
+                <p class="text-xs text-[#8E95A5] mt-1">Live parameter updates are synced immediately with the running Python AI worker and Arduino firmware.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="loadSettings()" class="btn-secondary">
+                    <i class="fa-solid fa-rotate-left"></i> Reload
+                </button>
+                <button type="button" onclick="saveSettings()" class="btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- 4 CONFIGURATION PANELS (Blueprint Page 6 & 8) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- PANEL 1: AI DETECTION TUNING -->
+            <div class="panel p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                        <i class="fa-solid fa-eye text-[#FF6B00]"></i>
+                        <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">AI Vision & Detection Tuning</h2>
+                    </div>
+
+                    <div class="flex flex-col gap-5 mt-4">
+                        <!-- Confidence Threshold -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1.5">
+                                <label class="font-medium text-[#F4F4F6]">Detection Confidence Threshold</label>
+                                <span id="conf-val" class="font-mono text-[#FF6B00] font-bold text-sm">0.35</span>
+                            </div>
+                            <input type="range" id="input-conf" min="0.30" max="0.80" step="0.05" value="0.35" oninput="document.getElementById('conf-val').innerText = parseFloat(this.value).toFixed(2)">
+                            <div class="flex justify-between text-[10px] font-mono text-[#8E95A5] mt-1">
+                                <span>0.30 (Sensitive)</span>
+                                <span>0.55 (Balanced)</span>
+                                <span>0.80 (Strict)</span>
+                            </div>
+                            <p class="text-[11px] text-[#8E95A5] mt-1.5 leading-relaxed">
+                                Minimum YOLOv8 probability required to register safety helmet and high-visibility vest items.
+                            </p>
+                        </div>
+
+                        <!-- Verification Frames Streak -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1.5">
+                                <label class="font-medium text-[#F4F4F6]">Consecutive Compliant Frames Needed</label>
+                                <span id="frames-val" class="font-mono text-[#10B981] font-bold text-sm">2 frames</span>
+                            </div>
+                            <input type="range" id="input-frames" min="1" max="10" step="1" value="2" oninput="document.getElementById('frames-val').innerText = this.value + ' frames'">
+                            <div class="flex justify-between text-[10px] font-mono text-[#8E95A5] mt-1">
+                                <span>1 (Instant)</span>
+                                <span>5 (Filter jitter)</span>
+                                <span>10 (High stability)</span>
+                            </div>
+                            <p class="text-[11px] text-[#8E95A5] mt-1.5 leading-relaxed">
+                                Required consecutive compliant frames before gate access is granted. Prevents false triggers from single-frame optical reflections.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-[rgba(255,255,255,0.06)] text-[11px] font-mono text-[#8E95A5] flex items-center justify-between">
+                    <span>Active Model: <b class="text-[#F4F4F6]">YOLOv8 best.pt</b></span>
+                    <span>Input: <b class="text-[#F4F4F6]">640x640 px</b></span>
+                </div>
+            </div>
+
+            <!-- PANEL 2: GATE & SERVO TIMING -->
+            <div class="panel p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                        <i class="fa-solid fa-gear text-[#FF6B00]"></i>
+                        <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">Physical Gate & Servo Timing</h2>
+                    </div>
+
+                    <div class="flex flex-col gap-5 mt-4">
+                        <!-- Barrier Open Rest Duration -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1.5">
+                                <label class="font-medium text-[#F4F4F6]">Barrier Open Rest Window</label>
+                                <span id="grant-val" class="font-mono text-[#10B981] font-bold text-sm">15.0 s</span>
+                            </div>
+                            <input type="range" id="input-grant" min="5" max="30" step="1" value="15" oninput="document.getElementById('grant-val').innerText = parseFloat(this.value).toFixed(1) + ' s'">
+                            <div class="flex justify-between text-[10px] font-mono text-[#8E95A5] mt-1">
+                                <span>5.0 s</span>
+                                <span>15.0 s (Standard)</span>
+                                <span>30.0 s (Extended)</span>
+                            </div>
+                            <p class="text-[11px] text-[#8E95A5] mt-1.5 leading-relaxed">
+                                Duration the servo motor remains stationary at 90° allowing a worker to cross the barrier without obstruction.
+                            </p>
+                        </div>
+
+                        <!-- Denied Alert Duration -->
+                        <div>
+                            <div class="flex justify-between items-center text-xs mb-1.5">
+                                <label class="font-medium text-[#F4F4F6]">Violation Alert Duration</label>
+                                <span id="deny-val" class="font-mono text-[#F87171] font-bold text-sm">3.0 s</span>
+                            </div>
+                            <input type="range" id="input-deny" min="2" max="10" step="0.5" value="3.0" oninput="document.getElementById('deny-val').innerText = parseFloat(this.value).toFixed(1) + ' s'">
+                            <div class="flex justify-between text-[10px] font-mono text-[#8E95A5] mt-1">
+                                <span>2.0 s</span>
+                                <span>3.0 s (Standard)</span>
+                                <span>10.0 s</span>
+                            </div>
+                            <p class="text-[11px] text-[#8E95A5] mt-1.5 leading-relaxed">
+                                Duration the Red LED, 2.4kHz buzzer warble, and denied on-screen banner remain active before clearing.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-[rgba(255,255,255,0.06)] text-[11px] font-mono text-[#8E95A5] flex items-center justify-between">
+                    <span>Sweep Speed: <b class="text-[#F4F4F6]">1.10s (12,222µs/deg)</b></span>
+                    <span>Range: <b class="text-[#F4F4F6]">0° to 90°</b></span>
+                </div>
+            </div>
+
+            <!-- PANEL 3: HARDWARE & TELEGRAM LINK -->
+            <div class="panel p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                        <i class="fa-solid fa-microchip text-[#FF6B00]"></i>
+                        <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">Hardware & Telegram Link</h2>
+                    </div>
+
+                    <div class="flex flex-col gap-3 mt-4 text-xs">
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Serial Port:</span>
+                            <span id="hw-port" class="font-mono text-[#F4F4F6] font-semibold">COM5 @ 9600 baud</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Arduino Controller:</span>
+                            <span class="font-mono text-[#10B981] flex items-center gap-1.5 font-semibold">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span> Connected
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Servo Interlock:</span>
+                            <span class="font-mono text-[#F4F4F6]">Protected (15s Hold Locked)</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Telegram Bot:</span>
+                            <span id="hw-bot" class="font-mono text-[#FF6B00]">@Construction_Safety_Alerts_Bot</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Alert Cooldown Timer:</span>
+                            <span id="hw-cooldown" class="font-mono text-[#FFB800] font-semibold">40.0s (Anti-Spam)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-[rgba(255,255,255,0.06)] flex items-center justify-between">
+                    <span class="text-[11px] text-[#8E95A5]">Verify instant alert delivery:</span>
+                    <button type="button" onclick="testTelegramAlert()" id="btn-tg-test" class="btn-secondary !h-8 !text-xs">
+                        <i class="fa-brands fa-telegram text-[#229ED9]"></i> Test Alert
+                    </button>
+                </div>
+            </div>
+
+            <!-- PANEL 4: DATA RETENTION & LOG MAINTENANCE -->
+            <div class="panel p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 pb-3 border-b border-[rgba(255,255,255,0.08)]">
+                        <i class="fa-solid fa-database text-[#FF6B00]"></i>
+                        <h2 class="font-condensed font-bold text-lg uppercase tracking-wider text-[#F4F4F6]">Data Retention & Maintenance</h2>
+                    </div>
+
+                    <div class="flex flex-col gap-3 mt-4 text-xs">
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Event Storage Log:</span>
+                            <span class="font-mono text-[#F4F4F6]">logs/events.csv</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Snapshot Retention:</span>
+                            <span class="font-mono text-[#F4F4F6]">7 Days (Automatic rollover)</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Total Check Events:</span>
+                            <span id="data-total-events" class="font-mono text-[#F4F4F6] font-bold">--</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+                            <span class="text-[#8E95A5]">Export Format:</span>
+                            <span class="font-mono text-[#8E95A5]">RFC 4180 Standard CSV</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-[rgba(255,255,255,0.06)] flex items-center justify-between">
+                    <span class="text-[11px] text-[#8E95A5]">Reset records (Creates backup):</span>
+                    <button type="button" onclick="confirmClearLog()" class="btn-danger !h-8 !text-xs">
+                        <i class="fa-solid fa-trash-can"></i> Clear Event Log
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    
+        <!-- ===================================================================== -->
+        <!-- ENGINEERING PROJECT TEAM CREDITS                                      -->
+        <!-- ===================================================================== -->
+        <section class="panel p-4 flex flex-col md:flex-row items-center justify-between gap-4 bg-gradient-to-r from-[#141822]/90 via-[#0F131C]/80 to-[rgba(10,13,18,0.7)] border-t-2 border-t-[#FF6B00]/40 shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-[#FF6B00]/15 border border-[#FF6B00]/40 flex items-center justify-center text-[#FF6B00] text-sm shrink-0 shadow-[0_0_12px_rgba(255,107,0,0.3)]">
+                    <i class="fa-solid fa-code-commit"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-mono uppercase text-[#FF6B00] font-bold tracking-wider">PROJECT CREDITS</span>
+                    <h4 class="font-display font-bold text-sm text-[#F4F4F6] uppercase">DEVELOPED BY</h4>
+                </div>
+            </div>
+
+            <!-- Team Members Avatars & Info with LinkedIn Badges -->
+            <div class="flex items-center gap-6 sm:gap-8 flex-wrap justify-center">
+                <!-- Member 1: Vedant Patke -->
+                <div class="flex items-center gap-2.5 group">
+                    <img src="/static/team_vedant_patke.jpg" alt="Vedant Patke" class="w-9 h-9 rounded-full object-cover border-2 border-[#FF6B00] shadow-[0_0_10px_rgba(255,107,0,0.4)] group-hover:scale-110 transition-transform">
+                    <div class="text-left font-mono">
+                        <div class="text-xs font-bold text-[#F4F4F6] flex items-center gap-1.5">
+                            <span>Vedant Patke</span>
+                            <a href="https://www.linkedin.com/in/vedant-patke-0761a232a/" target="_blank" rel="noopener noreferrer" class="text-[#0A66C2] hover:text-[#38BDF8] transition-transform hover:scale-115 p-0.5" title="View Vedant Patke on LinkedIn">
+                                <i class="fa-brands fa-linkedin text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="text-[10px] text-[#8E95A5]">Computer Science & AI Engineering Student</div>
+                    </div>
+                </div>
+
+                <!-- Member 2: Sandesh Vairagar -->
+                <div class="flex items-center gap-2.5 group">
+                    <img src="/static/team_sandesh_vairagar.jpg" alt="Sandesh Vairagar" class="w-9 h-9 rounded-full object-cover border-2 border-[#38BDF8] shadow-[0_0_10px_rgba(56,189,248,0.35)] group-hover:scale-110 transition-transform">
+                    <div class="text-left font-mono">
+                        <div class="text-xs font-bold text-[#F4F4F6] flex items-center gap-1.5">
+                            <span>Sandesh Vairagar</span>
+                            <a href="https://www.linkedin.com/in/sandesh-vairagar" target="_blank" rel="noopener noreferrer" class="text-[#0A66C2] hover:text-[#38BDF8] transition-transform hover:scale-115 p-0.5" title="View Sandesh Vairagar on LinkedIn">
+                                <i class="fa-brands fa-linkedin text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="text-[10px] text-[#8E95A5]">Computer Science & Engineering (AI) Student</div>
+                    </div>
+                </div>
+
+                <!-- Member 3: Prathamesh Shelke -->
+                <div class="flex items-center gap-2.5 group">
+                    <img src="/static/team_prathamesh_shelke.jpg" alt="Prathamesh Shelke" class="w-9 h-9 rounded-full object-cover border-2 border-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.35)] group-hover:scale-110 transition-transform">
+                    <div class="text-left font-mono">
+                        <div class="text-xs font-bold text-[#F4F4F6] flex items-center gap-1.5">
+                            <span>Prathamesh Shelke</span>
+                            <a href="https://in.linkedin.com/in/prathamesh-shelke-86829b32a" target="_blank" rel="noopener noreferrer" class="text-[#0A66C2] hover:text-[#38BDF8] transition-transform hover:scale-115 p-0.5" title="View Prathamesh Shelke on LinkedIn">
+                                <i class="fa-brands fa-linkedin text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="text-[10px] text-[#8E95A5]">Software Engineer & Full-Stack Developer</div>
+                    </div>
+                </div>
+            </div>
+
+            <a href="/about#team" class="text-xs font-mono text-[#8E95A5] hover:text-[#FF6B00] transition-colors flex items-center gap-1 group">
+                Team Profiles <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+            </a>
+        </section>
+
+    </main>
+
+    <!-- FLOATING TOAST NOTIFICATION -->
+    <div id="toast" class="fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 pointer-events-none panel px-4 py-3 shadow-2xl flex items-center gap-3 border-l-4">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-lg"></i>
+        <div>
+            <div id="toast-title" class="font-condensed font-bold uppercase tracking-wider text-sm">SETTINGS SAVED</div>
+            <div id="toast-msg" class="text-xs text-[#8E95A5]">Parameters updated successfully.</div>
+        </div>
+    </div>
+
+    <!-- CLEAR LOG CONFIRMATION MODAL -->
+    <div id="clear-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="panel max-w-md w-full p-6 flex flex-col gap-4 border border-[rgba(239,68,68,0.3)]">
+            <div class="flex items-center gap-3 text-[#F87171]">
+                <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                <h3 class="font-condensed font-bold text-xl uppercase tracking-wider text-[#F4F4F6]">Clear Event Log?</h3>
+            </div>
+            <p class="text-xs text-[#8E95A5] leading-relaxed">
+                This action will archive the current <code class="text-[#F4F4F6] font-mono">events.csv</code> as a timestamped backup and reset all live statistics. Historical snapshots on disk will remain untouched.
+            </p>
+            <div class="flex items-center justify-end gap-3 mt-2">
+                <button type="button" onclick="document.getElementById('clear-modal').classList.add('hidden')" class="btn-secondary !h-9">
+                    Cancel
+                </button>
+                <button type="button" onclick="executeClearLog()" class="btn-danger !h-9">
+                    Yes, Clear Log
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('top-clock').innerText = `${h}:${m}:${s}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function showToast(title, message, isSuccess = true) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const titleEl = document.getElementById('toast-title');
+            const msgEl = document.getElementById('toast-msg');
+
+            titleEl.innerText = title;
+            msgEl.innerText = message;
+
+            if (isSuccess) {
+                toast.style.borderColor = 'var(--granted)';
+                icon.className = 'fa-solid fa-circle-check text-[#10B981] text-lg';
+            } else {
+                toast.style.borderColor = 'var(--denied-text)';
+                icon.className = 'fa-solid fa-circle-xmark text-[#F87171] text-lg';
+            }
+
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-100px]', 'opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                if (!res.ok) throw new Error('Failed to fetch settings');
+                const data = await res.json();
+
+                if (data.confidence !== undefined) {
+                    document.getElementById('input-conf').value = data.confidence;
+                    document.getElementById('conf-val').innerText = parseFloat(data.confidence).toFixed(2);
+                }
+                if (data.frames_needed !== undefined) {
+                    document.getElementById('input-frames').value = data.frames_needed;
+                    document.getElementById('frames-val').innerText = data.frames_needed + ' frames';
+                }
+                if (data.grant_open_sec !== undefined) {
+                    const val = Math.max(5, data.grant_open_sec - 2.5);
+                    document.getElementById('input-grant').value = Math.round(val);
+                    document.getElementById('grant-val').innerText = Math.round(val).toFixed(1) + ' s';
+                }
+                if (data.deny_show_sec !== undefined) {
+                    document.getElementById('input-deny').value = data.deny_show_sec;
+                    document.getElementById('deny-val').innerText = parseFloat(data.deny_show_sec).toFixed(1) + ' s';
+                }
+                if (data.serial_port) {
+                    document.getElementById('hw-port').innerText = `${data.serial_port} @ ${data.baud_rate || 9600} baud`;
+                }
+                if (data.telegram_bot) {
+                    document.getElementById('hw-bot').innerText = data.telegram_bot;
+                }
+                if (data.telegram_cooldown_sec !== undefined) {
+                    document.getElementById('hw-cooldown').innerText = `${data.telegram_cooldown_sec}s (Anti-Spam)`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+
+            try {
+                const sres = await fetch('/api/stats');
+                if (sres.ok) {
+                    const sdata = await sres.json();
+                    document.getElementById('data-total-events').innerText = sdata.total_checks ?? '--';
+                }
+            } catch (e) {}
+        }
+
+        async function saveSettings() {
+            const conf = parseFloat(document.getElementById('input-conf').value);
+            const frames = parseInt(document.getElementById('input-frames').value);
+            const grantHold = parseFloat(document.getElementById('input-grant').value);
+            const totalGrant = grantHold + 2.5;
+            const deny = parseFloat(document.getElementById('input-deny').value);
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        confidence: conf,
+                        frames_needed: frames,
+                        grant_open_sec: totalGrant,
+                        deny_show_sec: deny
+                    })
+                });
+                const resData = await res.json();
+                if (res.ok && resData.status === 'ok') {
+                    showToast('SETTINGS SAVED', 'Parameters live-applied to AI model and Arduino.');
+                } else {
+                    showToast('ERROR', resData.message || 'Failed to save settings', false);
+                }
+            } catch (err) {
+                showToast('NETWORK ERROR', err.message, false);
+            }
+        }
+
+        async function testTelegramAlert() {
+            const btn = document.getElementById('btn-tg-test');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+
+            try {
+                const res = await fetch('/api/telegram/test', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.status === 'ok') {
+                    showToast('TELEGRAM DELIVERED', data.message || 'Notification sent to Telegram chat.');
+                } else {
+                    showToast('DELIVERY FAILED', data.message || 'Ensure you tapped /start in the bot chat.', false);
+                }
+            } catch (e) {
+                showToast('TELEGRAM ERROR', e.message, false);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-brands fa-telegram text-[#229ED9]"></i> Test Alert';
+            }
+        }
+
+        function confirmClearLog() {
+            document.getElementById('clear-modal').classList.remove('hidden');
+        }
+
+        async function executeClearLog() {
+            document.getElementById('clear-modal').classList.add('hidden');
+            try {
+                const res = await fetch('/api/clear_log', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.status === 'ok') {
+                    showToast('LOG CLEARED', 'Historical events backed up and reset.');
+                    loadSettings();
+                } else {
+                    showToast('CLEAR FAILED', data.message || 'Error clearing log', false);
+                }
+            } catch (e) {
+                showToast('ERROR', e.message, false);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadSettings);
+    </script>
+    <!-- Shared Digital Twin Background & Particle Engine -->
+    <script>
+        const BG_THEMES = {
+            'construction': "url('/static/bg_construction_twin.jpg')",
+            'refinery': "url('/static/bg_industrial_twin.jpg')",
+            'checkpoint': "url('/static/bg_smart_checkpoint.jpg')"
+        };
+
+        function setThemeBg(theme) {
+            if (!BG_THEMES[theme]) theme = 'construction';
+            document.body.style.setProperty('--bg-image', BG_THEMES[theme]);
+            localStorage.setItem('sentinel_bg_theme', theme);
+
+            ['construction', 'refinery', 'checkpoint'].forEach(k => {
+                const btn = document.getElementById(`bg-btn-${k}`);
+                if (!btn) return;
+                if (k === theme) {
+                    btn.className = "px-2 py-0.5 rounded-[2px] bg-[#FF6B00] text-white font-bold transition-all shadow-[0_0_8px_rgba(255,107,0,0.5)]";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded-[2px] text-[#8E95A5] hover:text-white transition-all";
+                }
+            });
+        }
+
+        const initialTheme = localStorage.getItem('sentinel_bg_theme') || 'construction';
+        setThemeBg(initialTheme);
+
+        function initBackgroundParticles() {
+            const canvas = document.getElementById('bg-particles');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let w = canvas.width = window.innerWidth;
+            let h = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                w = canvas.width = window.innerWidth;
+                h = canvas.height = window.innerHeight;
+            });
+
+            const particles = [];
+            const count = 30;
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    radius: Math.random() * 1.8 + 0.6,
+                    vx: (Math.random() - 0.5) * 0.35,
+                    vy: -Math.random() * 0.4 - 0.15,
+                    alpha: Math.random() * 0.5 + 0.15,
+                    color: Math.random() > 0.45 ? '255, 107, 0' : '0, 240, 255'
+                });
+            }
+
+            function renderParticles() {
+                ctx.clearRect(0, 0, w, h);
+                for (let i = 0; i < count; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.y < 0) {
+                        p.y = h + 10;
+                        p.x = Math.random() * w;
+                    }
+                    if (p.x < 0) p.x = w;
+                    if (p.x > w) p.x = 0;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = p.color.startsWith('255') ? '#FF6B00' : '#00F0FF';
+                    ctx.fill();
+                }
+                requestAnimationFrame(renderParticles);
+            }
+            requestAnimationFrame(renderParticles);
+        }
+        initBackgroundParticles();
+    </script>
+</body>
+</html>
