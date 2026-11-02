@@ -327,6 +327,137 @@ def handle_telegram_command(cmd, arg):
 telegram_mgr.command_handler = handle_telegram_command
 
 # ------------------------- VISION & STATE MACHINE WORKER -------------------------
+class RobustCameraManager:
+    """
+    Permanent, crash-proof camera manager for Windows & Edge AI.
+    - Uses DirectShow (cv2.CAP_DSHOW) on Windows for instant capture.
+    - Scans indices [0, 1, 2, 3] automatically.
+    - Decoupled background capture thread: camera IO never freezes FastAPI or YOLO.
+    - Generates high-tech SCADA diagnostics standby card when camera is unplugged/locked.
+    - Automatically resumes live feed the millisecond a camera is reconnected.
+    """
+    def __init__(self, preferred_index=0):
+        self.preferred_index = preferred_index
+        self.active_index = None
+        self.cap = None
+        self.is_live = False
+        self.latest_frame = None
+        self.last_capture_time = 0
+        self.lock = threading.Lock()
+        self.running = True
+        
+        self.thread = threading.Thread(target=self._capture_loop, daemon=True)
+        self.thread.start()
+
+    def _find_working_camera(self):
+        indices = [self.preferred_index] + [i for i in [0, 1, 2, 3] if i != self.preferred_index]
+        for idx in indices:
+            try:
+                cap = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+                if cap.isOpened():
+                    ret, frame = cap.read()
+                    if ret and frame is not None and frame.size > 0:
+                        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        self.active_index = idx
+                        print(f"[CameraManager] Connected to webcam on Index {idx} (DirectShow)")
+                        return cap
+                    cap.release()
+            except Exception:
+                pass
+
+            try:
+                cap = cv2.VideoCapture(idx)
+                if cap.isOpened():
+                    ret, frame = cap.read()
+                    if ret and frame is not None and frame.size > 0:
+                        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        self.active_index = idx
+                        print(f"[CameraManager] Connected to webcam on Index {idx} (Default)")
+                        return cap
+                    cap.release()
+            except Exception:
+                pass
+        return None
+
+    def _generate_standby_frame(self):
+        h, w = 480, 640
+        frame = np.zeros((h, w, 3), dtype=np.uint8)
+        
+        # Subtle radar grid lines
+        for y in range(0, h, 40):
+            cv2.line(frame, (0, y), (w, y), (18, 22, 28), 1)
+        for x in range(0, w, 40):
+            cv2.line(frame, (x, 0), (x, h), (18, 22, 28), 1)
+            
+        cx, cy = w // 2, h // 2
+        cv2.circle(frame, (cx, cy), 60, (30, 40, 50), 1)
+        cv2.circle(frame, (cx, cy), 120, (30, 40, 50), 1)
+        cv2.line(frame, (cx - 80, cy), (cx + 80, cy), (40, 50, 65), 1)
+        cv2.line(frame, (cx, cy - 80), (cx, cy + 80), (40, 50, 65), 1)
+        
+        now_str = time.strftime("%H:%M:%S")
+        cv2.rectangle(frame, (100, 190), (540, 290), (15, 20, 26), -1)
+        cv2.rectangle(frame, (100, 190), (540, 290), (255, 107, 0), 2)
+        
+        cv2.putText(frame, "CCTV VISION NODE: SCANNING FOR WEBCAM", (120, 225),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 220, 255), 2)
+        cv2.putText(frame, f"STATUS: AUTO-PROBING PORTS [0-3] // {now_str}", (125, 255),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (140, 150, 165), 1)
+        cv2.putText(frame, "Plug in or enable USB webcam to activate Edge AI", (125, 275),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 180, 40), 1)
+                    
+        return frame
+
+    def _capture_loop(self):
+        consecutive_drops = 0
+        while self.running:
+            if self.cap is None or not self.cap.isOpened():
+                self.cap = self._find_working_camera()
+                if self.cap is None:
+                    standby = self._generate_standby_frame()
+                    with self.lock:
+                        self.latest_frame = standby
+                        self.is_live = False
+                    time.sleep(1.0)
+                    continue
+
+            ok, frame = self.cap.read()
+            if not ok or frame is None or frame.size == 0:
+                consecutive_drops += 1
+                if consecutive_drops >= 3:
+                    try:
+                        self.cap.release()
+                    except Exception:
+                        pass
+                    self.cap = None
+                    consecutive_drops = 0
+                time.sleep(0.1)
+                continue
+
+            consecutive_drops = 0
+            with self.lock:
+                self.latest_frame = frame
+                self.is_live = True
+                self.last_capture_time = time.time()
+
+            time.sleep(0.015)
+
+    def get_frame(self):
+        with self.lock:
+            if self.latest_frame is not None:
+                return self.latest_frame.copy(), self.is_live
+        return self._generate_standby_frame(), False
+
+    def release(self):
+        self.running = False
+        if self.cap:
+            try:
+                self.cap.release()
+            except Exception:
+                pass
+
 def vision_worker():
     """Runs camera capture, YOLO detection, and state machine continuously."""
     print("Initializing YOLO model...")
@@ -346,85 +477,36 @@ def vision_worker():
                 target_class_ids.append(cid)
         print(f"Mask filter removed. Active classes: {[model.names[i] for i in target_class_ids]}")
 
-    def get_camera(index=0):
-        # Try DirectShow first on Windows for instant, crash-proof hardware access
-        for idx in [index, 0, 1]:
-            try:
-                c = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
-                if c.isOpened():
-                    ret_test, frame_test = c.read()
-                    if ret_test and frame_test is not None:
-                        c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                        c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                        return c
-                    c.release()
-            except Exception:
-                pass
-            try:
-                c = cv2.VideoCapture(idx)
-                if c.isOpened():
-                    ret_test, frame_test = c.read()
-                    if ret_test and frame_test is not None:
-                        c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-                        c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-                        return c
-                    c.release()
-            except Exception:
-                pass
-        return None
-
-    cap = get_camera(CAMERA_INDEX)
-    consecutive_drops = 0
+    cam_mgr = RobustCameraManager(CAMERA_INDEX)
     fps_counter = 0
     fps_timer = time.time()
 
     while True:
-        if cap is None or not cap.isOpened():
-            cap = get_camera(CAMERA_INDEX)
-            if cap is None:
-                blank = np.zeros((480, 640, 3), dtype=np.uint8)
-                cv2.putText(blank, "Connecting Camera...", (180, 240),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 180, 255), 2)
-                ret_enc, jpeg_enc = cv2.imencode('.jpg', blank)
-                if ret_enc:
-                    with sys_state.lock:
-                        sys_state.latest_jpeg = jpeg_enc.tobytes()
-                time.sleep(0.5)
-                continue
-
-        ok, frame = cap.read()
-        if not ok or frame is None:
-            consecutive_drops += 1
-            blank = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(blank, "Reconnecting Camera...", (170, 240),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 180, 255), 2)
-            ret_enc, jpeg_enc = cv2.imencode('.jpg', blank)
-            if ret_enc:
-                with sys_state.lock:
-                    sys_state.latest_jpeg = jpeg_enc.tobytes()
-
-            if consecutive_drops >= 3:
-                try:
-                    cap.release()
-                except Exception:
-                    pass
-                time.sleep(0.5)
-                cap = get_camera(CAMERA_INDEX)
-                consecutive_drops = 0
-            else:
-                time.sleep(0.04)
-            continue
-
-        consecutive_drops = 0
+        frame, is_live = cam_mgr.get_frame()
         now = time.time()
+
         fps_counter += 1
         if now - fps_timer >= 1.0:
             with sys_state.lock:
-                sys_state.fps = fps_counter
+                sys_state.fps = fps_counter if is_live else 0
             fps_counter = 0
             fps_timer = now
 
-        # Run AI Detection (Detect Person, Helmet, Vest and NO-PPE classes)
+        if not is_live:
+            # Standby mode: stream diagnostics grid directly without running YOLO inference
+            ret, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            if ret:
+                with sys_state.lock:
+                    sys_state.latest_jpeg = jpeg.tobytes()
+                    sys_state.helmet_detected = False
+                    sys_state.vest_detected = False
+                    sys_state.person_detected = False
+                    sys_state.helmet_conf = 0.0
+                    sys_state.vest_conf = 0.0
+            time.sleep(0.04)
+            continue
+
+        # Live Camera Active: Run AI Detection (Detect Person, Helmet, Vest)
         helmet_seen = False
         vest_seen = False
         person_seen = False
