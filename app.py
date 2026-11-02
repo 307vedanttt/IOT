@@ -346,22 +346,76 @@ def vision_worker():
                 target_class_ids.append(cid)
         print(f"Mask filter removed. Active classes: {[model.names[i] for i in target_class_ids]}")
 
-    cap = cv2.VideoCapture(CAMERA_INDEX)
-    if not cap.isOpened():
-        cap = cv2.VideoCapture(1)
+    def get_camera(index=0):
+        # Try DirectShow first on Windows for instant, crash-proof hardware access
+        for idx in [index, 0, 1]:
+            try:
+                c = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+                if c.isOpened():
+                    ret_test, frame_test = c.read()
+                    if ret_test and frame_test is not None:
+                        c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        return c
+                    c.release()
+            except Exception:
+                pass
+            try:
+                c = cv2.VideoCapture(idx)
+                if c.isOpened():
+                    ret_test, frame_test = c.read()
+                    if ret_test and frame_test is not None:
+                        c.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                        c.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                        return c
+                    c.release()
+            except Exception:
+                pass
+        return None
 
+    cap = get_camera(CAMERA_INDEX)
+    consecutive_drops = 0
     fps_counter = 0
     fps_timer = time.time()
 
     while True:
+        if cap is None or not cap.isOpened():
+            cap = get_camera(CAMERA_INDEX)
+            if cap is None:
+                blank = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(blank, "Connecting Camera...", (180, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 180, 255), 2)
+                ret_enc, jpeg_enc = cv2.imencode('.jpg', blank)
+                if ret_enc:
+                    with sys_state.lock:
+                        sys_state.latest_jpeg = jpeg_enc.tobytes()
+                time.sleep(0.5)
+                continue
+
         ok, frame = cap.read()
         if not ok or frame is None:
+            consecutive_drops += 1
             blank = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(blank, "Initializing Camera...", (160, 240),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 180, 255), 2)
-            frame = blank
-            time.sleep(0.04)
+            cv2.putText(blank, "Reconnecting Camera...", (170, 240),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 180, 255), 2)
+            ret_enc, jpeg_enc = cv2.imencode('.jpg', blank)
+            if ret_enc:
+                with sys_state.lock:
+                    sys_state.latest_jpeg = jpeg_enc.tobytes()
 
+            if consecutive_drops >= 3:
+                try:
+                    cap.release()
+                except Exception:
+                    pass
+                time.sleep(0.5)
+                cap = get_camera(CAMERA_INDEX)
+                consecutive_drops = 0
+            else:
+                time.sleep(0.04)
+            continue
+
+        consecutive_drops = 0
         now = time.time()
         fps_counter += 1
         if now - fps_timer >= 1.0:
